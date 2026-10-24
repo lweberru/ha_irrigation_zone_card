@@ -1,6 +1,7 @@
 import { styles } from './styles.js';
 import { entityKeys, validateConfig, zoneModel, durationParts } from './model.js';
 import './editor.js';
+import './overview-card.js';
 import { hasZone, resolveZone, watchDiscovery, sameEntities } from './discovery.js';
 
 export const translations = {

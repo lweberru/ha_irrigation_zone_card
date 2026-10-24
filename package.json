@@ -1,12 +1,12 @@
 {
   "name": "ha_irrigation_zone_card",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "A visual Home Assistant card for a Smart Irrigation zone",
+  "description": "Visual Home Assistant cards for Smart Irrigation zones and central planning",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test test/model.test.js",
+    "test": "node --test test/*.test.js",
     "test:browser": "playwright test",
     "check": "npm run test && npm run build && npm run test:browser",
     "dev": "node scripts/serve.mjs"

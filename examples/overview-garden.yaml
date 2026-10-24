@@ -1,0 +1,4 @@
+type: custom:irrigation-overview-card
+name: Gartensteuerung
+automation_entity: automation.gartenbewasserung_gemeinsames_ventil_smart_irrigation
+main_valve_entity: switch.gartenbewasserung

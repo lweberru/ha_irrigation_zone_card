@@ -2,6 +2,8 @@
 
 Eine Home-Assistant-Dashboardkarte für **eine Smart-Irrigation-Zone**. Bodenfeuchte als Ring, Wasserbilanz mit Nullpunkt, berechnete Bewässerungsdauer und Wasserverbrauch in einer ruhigen, kompakten Gartenoptik. Optional mit manuellem Zonenventil (`switch.*` oder `valve.*`).
 
+Seit v0.3.0 enthält dieselbe HACS-Installation zusätzlich **Irrigation Overview**, eine zentrale Karte für Planung, Regen- und Frostschutz sowie integrationsweite Aktionen.
+
 ![Kartenvorschau](docs/preview-light.png)
 
 ## Installation
@@ -19,7 +21,58 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.2.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.3.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+
+## Zentrale Karte: Irrigation Overview
+
+![Zentrale mit Planung, Regen- und Frostschutz](docs/overview-light.png)
+
+Nach dem HACS-Update den Browser neu laden und im Kartenwähler **Irrigation Overview** auswählen. Für die automatische Zuordnung genügt:
+
+```yaml
+type: custom:irrigation-overview-card
+```
+
+Die Karte zeigt zentrale Daten aus Smart Irrigation:
+
+- Gesamtstatus und nächster Planzeitpunkt, einschließlich der Unterscheidung zwischen vorgemerkt und nicht vorgemerkt.
+- Berechneter oder prognostizierter Gesamtbedarf und Anzahl der Zonen mit Bedarf, ohne einzelne Zonenlisten zu duplizieren.
+- **Frostschutz als eigener Bereich:** gemeldete Temperatur und Frostgrenze in der Einheit der Integration, aktive Frostsperre, ausgeschalteter Schutz oder fehlender Messwert.
+- Regenprognose für den gemeldeten Zeitraum mit Vergleich zur Regengrenze; weitere aktive Prüfungen wie Regensensor, Wind, Bewässerungsabstand und Bodenfeuchte.
+- Wetterquelle und automatische Berechnung mit Berechnungszeit.
+- **Alle berechnen** und **Wetter aktualisieren** über die nativen globalen Button-Entitäten. Regenprognose-Sperre und Regengrenze werden ebenfalls automatisch anhand stabiler interner Kennungen zugeordnet.
+
+Eine eigene Automation und das Hauptventil sind optional. Im Editor tatsächliche Entity-IDs auswählen:
+
+```yaml
+type: custom:irrigation-overview-card
+name: Gartensteuerung
+automation_entity: automation.meine_bewasserung
+main_valve_entity: switch.mein_hauptventil
+```
+
+Die eigene Automation kann über die Karte aktiviert oder pausiert werden. Das Hauptventil zeigt seinen Zustand; ein Klick öffnet den nativen HA-Detaildialog. Die Regengrenze lässt sich ebenfalls über den Detaildialog bearbeiten. Der Schalter für die Regenprognose-Sperre deaktiviert bzw. aktiviert den Schutz dauerhaft bis zur nächsten Änderung. Frost- und Windgrenzen werden aus den Schutzprüfungen übernommen; deren Konfiguration erfolgt weiterhin in Smart Irrigation.
+
+**Planung ist kein garantierter Lauf:** Die Vorschau stammt aus der Integrationsplanung. Ein Startzeitpunkt allein bedeutet nicht, dass der Start vorgemerkt ist. Eigene Automationen können andere Regeln anwenden als die Vorschau. Ohne zugewiesene `automation_entity` kennt die Karte deren Aktivierungszustand nicht; sie errät keine Automation. Direkte Ventilläufe werden nur anhand der von Smart Irrigation gemeldeten aktiven Läufe als Bewässerung aktiv dargestellt. Die Karte startet selbst keinen Bewässerungslauf.
+
+Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung aus `skip_preview` an. Ein fehlender Temperaturwert wird ausdrücklich als unbekannt dargestellt. Ein ausgeschalteter Frostschutz erhält einen entsprechenden Hinweis, keine Freigabeanzeige.
+
+| Feld | Standard | Bedeutung |
+| --- | --- | --- |
+| `name` | `Bewässerung` / `Irrigation` | Titel |
+| `icon` | `mdi:sprinkler-variant` | Symbol |
+| `automation_entity` | optional | Eigene `automation.*`; Zustand und Aktivieren/Pausieren |
+| `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und HA-Detaildialog |
+| `calculate_entity` | automatisch | Globale `button.*`-Entität für alle Berechnungen |
+| `update_weather_entity` | automatisch | Globale `button.*`-Entität für Wetteraktualisierung |
+| `precipitation_switch_entity` | automatisch | `switch.*` für die Regenprognose-Sperre |
+| `precipitation_threshold_entity` | automatisch | `number.*` für die Regengrenze |
+| `show_actions` | `true` | Direkte Service-Schaltflächen anzeigen; HA-Detaildialoge bleiben erreichbar |
+| `language` | `auto` | `auto`, `de`, `en` |
+
+Voraussetzung sind die Smart-Irrigation-Endpunkte `smart_irrigation/info`, `smart_irrigation/config` und `smart_irrigation/zones` sowie Zugriff auf das Entity-Registry. Geprüft mit v2026.10.8. Die Karte lädt die Planung bei Integrationsänderungen, relevanten Zustandsänderungen, Wiederverbindung und einmal pro Minute nach, solange sie angezeigt wird. Mehrere zentrale Karten teilen sich die Planungsabfragen; mit den Zonenkarten teilen sie sich die Zonen-/Registry-Abfragen. Abonnements und Timer werden beim Entfernen aufgeräumt.
+
+Datum und Uhrzeit verwenden die HA-Zeitzone. Nicht verfügbare API-Daten werden als unbekannt dargestellt; berechnete Werte werden bei Fehlern nicht durch 0 ersetzt. Fehlende globale Aktions-Entitäten deaktivieren die jeweilige Schaltfläche. Noch nie gedrückte Buttons mit HA-Zustand `unknown` bleiben bedienbar.
 
 ## Einfach einrichten: Zone auswählen
 
@@ -122,6 +175,8 @@ npm run dev
 
 Die lokale Vorschau zeigt drei Zonen mit **Beispieldaten**, darunter die bei der Entwicklung gelesenen Vorgartenwerte (3,52 mm, 100 %, 0 s). Buttons simulieren Zustandswechsel im Browser. Es werden keine Home-Assistant-Zugangsdaten benötigt und keine realen Ventile geschaltet. Symbole in der Vorschau sind lokale Platzhalter; im Dashboard zeichnet Home Assistant seine eigenen MDI-Icons. Der visuelle Editor verwendet das native `ha-form` und wird in Home Assistant dargestellt.
 
+Die zentrale Vorschau unter `http://localhost:5173/demo/overview.html` zeigt geplanten Bedarf, Regensperre und Frostsperre mit Beispieldaten. Auch dort werden alle Aktionen ausschließlich im Browser simuliert.
+
 ```bash
 npx playwright install chromium
 npm run check
@@ -130,6 +185,8 @@ npm run check
 Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Darstellung, Bestätigungsdialog, Serviceaufrufe, Fehler, HTML-Escaping, Detaildialog-Ereignis, Editor-Konfigurationsereignis und mobile Breite im Browser. Screenshots unter `test-results/`. Die Browserprüfungen verwenden simulierte HA-Objekte; eine Prüfung im echten HA-Frontend bleibt für eine Installation erforderlich.
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
+
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Insgesamt 18 Logiktests und 18 Browserprüfungen. Auch die zentrale Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

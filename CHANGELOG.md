@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — 2026-10-24
+
+- Neue zentrale Karte **Irrigation Overview** (`custom:irrigation-overview-card`) in derselben HACS-Datei.
+- Gesamtstatus, nächster Planzeitpunkt, Bedarf und Anzahl der bedürftigen Zonen; vorgemerkte Starts und reine Planung werden unterschieden.
+- Eigener Frostbereich mit gemeldeter Temperatur, Frostgrenze, aktiver Sperre sowie ausgeschaltetem oder unbekanntem Schutz.
+- Regenprognose, Regengrenze und weitere gemeldete Schutzprüfungen.
+- Automatisch zugeordnete zentrale Aktionen für Berechnung und Wetter; Regenprognose-Sperre und Regengrenze, optional eigene Automation und Hauptventil.
+- Visueller Editor, Deutsch/Englisch, HA-Zeitzone, helle/dunkle Themes und mobile Vorschau.
+- 18 Logiktests und 18 Browserprüfungen; zentrale Zuordnung zusätzlich mit echten API-Antworten geprüft.
+
 ## 0.2.0 — 2026-10-24
 
 - Neue Zonenauswahl: `zone` genügt, um Smart-Irrigation-Sensoren automatisch über stabile interne Kennungen zuzuordnen, auch nach Änderungen der Entity-IDs.

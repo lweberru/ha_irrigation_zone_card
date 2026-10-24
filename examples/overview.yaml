@@ -1,0 +1,7 @@
+type: custom:irrigation-overview-card
+name: Gartensteuerung
+# Die globalen Smart-Irrigation-Entitäten werden automatisch zugeordnet.
+# Optional eigene Automation und Hauptventil auswählen:
+# automation_entity: automation.meine_bewasserung
+# main_valve_entity: switch.mein_hauptventil
+# show_actions: false
