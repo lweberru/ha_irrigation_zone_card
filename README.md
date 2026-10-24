@@ -1,188 +1,192 @@
 # Irrigation Zone Card
 
-Eine Home-Assistant-Dashboardkarte für **eine Smart-Irrigation-Zone**. Bodenfeuchte als Ring, Wasserbilanz mit Nullpunkt, berechnete Bewässerungsdauer und Wasserverbrauch in einer ruhigen, kompakten Gartenoptik. Optional mit manuellem Zonenventil (`switch.*` oder `valve.*`).
+**English** | [Deutsch](README.de.md)
 
-Seit v0.3.0 enthält dieselbe HACS-Installation zusätzlich **Irrigation Overview**, eine zentrale Karte für Planung, Regen- und Frostschutz sowie integrationsweite Aktionen.
+A Home Assistant dashboard card for **one Smart Irrigation zone**. A soil moisture ring, water balance with a zero reference, calculated watering duration, and water usage in a calm, compact garden design. An optional zone valve (`switch.*` or `valve.*`) adds manual control.
 
-![Kartenvorschau](docs/preview-light.png)
+Since v0.3.0, the same HACS installation also includes **Irrigation Overview**, a central card for planning, rain and frost protection, and integration-wide actions.
+
+![Zone card preview](docs/preview-light.png)
+
+The screenshots show the German interface. Both cards support English and German and follow your Home Assistant language by default. Use `language: en` to select English explicitly.
 
 ## Installation
 
 ### HACS
 
-Die aktuelle Version ist auf der [Release-Seite](https://github.com/lweberru/ha_irrigation_zone_card/releases/latest) verfügbar.
+The current version is available on the [releases page](https://github.com/lweberru/ha_irrigation_zone_card/releases/latest).
 
-1. In HACS unter **Benutzerdefinierte Repositories** `https://github.com/lweberru/ha_irrigation_zone_card` hinzufügen, Typ **Dashboard**.
-2. **Irrigation Zone Card** herunterladen.
-3. Falls HACS die Ressource nicht automatisch einträgt: unter **Einstellungen → Dashboards → Ressourcen** `/hacsfiles/ha_irrigation_zone_card/ha_irrigation_zone_card.js` als **JavaScript-Modul** hinzufügen. Ressourcen sind im erweiterten Benutzermodus sichtbar.
-4. Browser neu laden. Im Kartenwähler nach **Irrigation Zone** suchen oder die YAML-Konfiguration unten verwenden.
+1. In HACS, add `https://github.com/lweberru/ha_irrigation_zone_card` under **Custom repositories**, with type **Dashboard**.
+2. Download **Irrigation Zone Card**.
+3. If HACS does not register the resource automatically, add `/hacsfiles/ha_irrigation_zone_card/ha_irrigation_zone_card.js` as a **JavaScript module** under **Settings → Dashboards → Resources**. Resources are visible with advanced mode enabled in your user profile.
+4. Reload your browser. Search for **Irrigation Zone** in the card picker or use the YAML configuration below.
 
-Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.js`; Home Assistant benötigt weder npm noch zusätzliche Karten. Dateiname und Repo-Struktur folgen den [HACS-Anforderungen](https://www.hacs.xyz/docs/publish/plugin/). Dies ist ein Custom Repository, keine Aufnahme in den HACS-Standardkatalog.
+The repository provides the ready-to-use bundle at `dist/ha_irrigation_zone_card.js`; Home Assistant needs neither npm nor additional cards. The filename and repository layout follow the [HACS requirements](https://www.hacs.xyz/docs/publish/plugin/). This is a custom repository; it is not listed in the default HACS catalog.
 
-### Manuell / lokale Entwicklung
+### Manual installation / local development
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.5.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.5.0` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
 
-## Zentrale Karte: Irrigation Overview
+## Central card: Irrigation Overview
 
-![Zentrale mit Planung, Regen- und Frostschutz](docs/overview-light.png)
+![Central planning, rain and frost protection](docs/overview-light.png)
 
-Nach dem HACS-Update den Browser neu laden und im Kartenwähler **Irrigation Overview** auswählen. Für die automatische Zuordnung genügt:
+After updating through HACS, reload your browser and select **Irrigation Overview** in the card picker. Automatic discovery only needs:
 
 ```yaml
 type: custom:irrigation-overview-card
 ```
 
-Die Karte zeigt zentrale Daten aus Smart Irrigation:
+The card displays central data from Smart Irrigation:
 
-- Gesamtstatus und nächster Planzeitpunkt, einschließlich der Unterscheidung zwischen vorgemerkt und nicht vorgemerkt.
-- Berechneter oder prognostizierter Gesamtbedarf und Anzahl der Zonen mit Bedarf, ohne einzelne Zonenlisten zu duplizieren.
-- **Frostschutz als eigener Bereich:** gemeldete Temperatur und Frostgrenze in der Einheit der Integration, aktive Frostsperre, ausgeschalteter Schutz oder fehlender Messwert.
-- Regenprognose für den gemeldeten Zeitraum mit Vergleich zur Regengrenze; weitere aktive Prüfungen wie Regensensor, Wind, Bewässerungsabstand und Bodenfeuchte.
-- Wetterquelle und automatische Berechnung mit Berechnungszeit.
-- **Alle berechnen** und **Wetter aktualisieren** über die nativen globalen Button-Entitäten. Regenprognose-Sperre und Regengrenze werden ebenfalls automatisch anhand stabiler interner Kennungen zugeordnet.
+- Overall status and the next planned start, distinguishing between an armed start and a start that has not been armed.
+- Calculated or forecast total demand and the number of zones needing water, without duplicating individual zone lists.
+- **A dedicated frost protection section:** reported temperature and frost threshold in the integration's units, an active frost hold, disabled protection, or a missing reading.
+- Rain forecast for the reported period compared with the rain threshold; other active checks such as a rain sensor, wind, minimum watering interval, and soil moisture.
+- Weather source and automatic calculation, including calculation time.
+- **Calculate all** and **Update weather** through the native global button entities. The rain forecast protection switch and rain threshold are also discovered automatically using stable internal identifiers.
 
-Eine eigene Automation und das Hauptventil sind optional. Im Editor tatsächliche Entity-IDs auswählen:
+Your own automation and a main valve are optional. Select their actual entity IDs in the editor:
 
 ```yaml
 type: custom:irrigation-overview-card
-name: Gartensteuerung
-automation_entity: automation.meine_bewasserung
-main_valve_entity: switch.mein_hauptventil
+name: Garden control
+automation_entity: automation.my_irrigation
+main_valve_entity: switch.my_main_valve
 ```
 
-Die eigene Automation kann über die Karte aktiviert oder pausiert werden. Das Hauptventil zeigt seinen Zustand; ein Klick öffnet den nativen HA-Detaildialog. Die Regengrenze lässt sich ebenfalls über den Detaildialog bearbeiten. Der Schalter für die Regenprognose-Sperre deaktiviert bzw. aktiviert den Schutz dauerhaft bis zur nächsten Änderung. Frost- und Windgrenzen werden aus den Schutzprüfungen übernommen; deren Konfiguration erfolgt weiterhin in Smart Irrigation.
+The card can enable or pause the assigned automation. The main valve displays its state; clicking it opens the native HA more-info dialog. The rain threshold can also be edited through that dialog. The rain forecast protection switch enables or disables that protection until changed again. Frost and wind thresholds come from the protection checks; configure them in Smart Irrigation.
 
-**Planung ist kein garantierter Lauf:** Die Vorschau stammt aus der Integrationsplanung. Ein Startzeitpunkt allein bedeutet nicht, dass der Start vorgemerkt ist. Eigene Automationen können andere Regeln anwenden als die Vorschau. Ohne zugewiesene `automation_entity` kennt die Karte deren Aktivierungszustand nicht; sie errät keine Automation. Direkte Ventilläufe werden nur anhand der von Smart Irrigation gemeldeten aktiven Läufe als Bewässerung aktiv dargestellt. Die Karte startet selbst keinen Bewässerungslauf.
+**A plan does not guarantee a run:** the preview comes from the integration's planning data. A start time alone does not mean that the start is armed. Your own automations may apply different rules. Without an assigned `automation_entity`, the card does not know whether your automation is enabled and does not guess which automation to use. Direct valve runs appear as active irrigation only when Smart Irrigation reports an active run. The card itself does not start an irrigation run.
 
-Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung aus `skip_preview` an. Ein fehlender Temperaturwert wird ausdrücklich als unbekannt dargestellt. Ein ausgeschalteter Frostschutz erhält einen entsprechenden Hinweis, keine Freigabeanzeige.
+The frost section uses the decision reported by `skip_preview` and does not invent a frost threshold. Missing temperature readings are explicitly shown as unknown. Disabled frost protection is labeled accordingly, rather than shown as clearance to irrigate.
 
-| Feld | Standard | Bedeutung |
+| Field | Default | Meaning |
 | --- | --- | --- |
-| `name` | `Bewässerung` / `Irrigation` | Titel |
-| `icon` | `mdi:sprinkler-variant` | Symbol |
-| `automation_entity` | optional | Eigene `automation.*`; Zustand und Aktivieren/Pausieren |
-| `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und HA-Detaildialog |
-| `calculate_entity` | automatisch | Globale `button.*`-Entität für alle Berechnungen |
-| `update_weather_entity` | automatisch | Globale `button.*`-Entität für Wetteraktualisierung |
-| `precipitation_switch_entity` | automatisch | `switch.*` für die Regenprognose-Sperre |
-| `precipitation_threshold_entity` | automatisch | `number.*` für die Regengrenze |
-| `show_actions` | `true` | Direkte Service-Schaltflächen anzeigen; HA-Detaildialoge bleiben erreichbar |
+| `name` | `Irrigation` / `Bewässerung` | Title |
+| `icon` | `mdi:sprinkler-variant` | Icon |
+| `automation_entity` | optional | Your `automation.*`; state and enable/pause control |
+| `main_valve_entity` | optional | `switch.*` or `valve.*`; state and HA more-info dialog |
+| `calculate_entity` | automatic | Global `button.*` entity for all calculations |
+| `update_weather_entity` | automatic | Global `button.*` entity for weather updates |
+| `precipitation_switch_entity` | automatic | `switch.*` for rain forecast protection |
+| `precipitation_threshold_entity` | automatic | `number.*` for the rain threshold |
+| `show_actions` | `true` | Show direct service buttons; HA more-info dialogs remain accessible |
 | `language` | `auto` | `auto`, `de`, `en` |
 
-Voraussetzung sind die Smart-Irrigation-Endpunkte `smart_irrigation/info`, `smart_irrigation/config` und `smart_irrigation/zones` sowie Zugriff auf das Entity-Registry. Geprüft mit v2026.10.8. Die Karte lädt die Planung bei Integrationsänderungen, relevanten Zustandsänderungen, Wiederverbindung und einmal pro Minute nach, solange sie angezeigt wird. Mehrere zentrale Karten teilen sich die Planungsabfragen; mit den Zonenkarten teilen sie sich die Zonen-/Registry-Abfragen. Abonnements und Timer werden beim Entfernen aufgeräumt.
+Requires the Smart Irrigation endpoints `smart_irrigation/info`, `smart_irrigation/config`, and `smart_irrigation/zones`, plus access to the entity registry. Tested with v2026.10.8. While displayed, the card refreshes planning data when integration settings or relevant entity states change, on reconnection, and once per minute. Multiple overview cards share planning requests; overview and zone cards share zone and registry requests. Subscriptions and timers are cleaned up when cards are removed.
 
-Datum und Uhrzeit verwenden die HA-Zeitzone. Nicht verfügbare API-Daten werden als unbekannt dargestellt; berechnete Werte werden bei Fehlern nicht durch 0 ersetzt. Fehlende globale Aktions-Entitäten deaktivieren die jeweilige Schaltfläche. Noch nie gedrückte Buttons mit HA-Zustand `unknown` bleiben bedienbar.
+Dates and times use the HA time zone. Unavailable API data is shown as unknown; errors do not turn calculated values into zero. Missing global action entities disable the corresponding buttons. Buttons that have never been pressed and have an HA state of `unknown` remain usable.
 
-## Einfach einrichten: Zone auswählen
+## Quick setup: select a zone
 
-Im visuellen Karteneditor unter **Smart-Irrigation-Zone** die gewünschte Zone auswählen. Die Karte übernimmt automatisch:
+Select the desired **Smart Irrigation zone** in the visual card editor. The card automatically uses:
 
-- Zonenname, berechnete Dauer, Bewässerungsbedarf, Live-Wasserbilanz und Wasserverbrauch.
-- Angewandte ET und Zonenproblemstatus einschließlich gemeldeter Ursache.
-- Den in Smart Irrigation hinterlegten Bodenfeuchtesensor (`soil_moisture_sensor`).
-- Das verknüpfte Ventil (`linked_entity`), sofern es ein `switch` oder `valve` ist.
+- Zone name, calculated duration, irrigation demand, live water balance, and water usage.
+- Applied ET and zone problem status, including any reported cause.
+- The soil moisture sensor configured in Smart Irrigation (`soil_moisture_sensor`).
+- The linked valve (`linked_entity`), provided it is a `switch` or `valve`.
 
-Die YAML-Konfiguration benötigt nur die interne Zonen-ID (auch `0` ist gültig):
-
-```yaml
-type: custom:irrigation-zone-card
-zone: 0
-```
-
-Der Editor zeigt Namen und IDs zur Auswahl an. `zone` ist **keine Home-Assistant-Ortszone** und kein Zonenname. Die Karte liest die Smart-Irrigation-Zonen per `smart_irrigation/zones` und findet deren Sensoren über die stabilen `unique_id`-Kennungen im HA-Entity-Registry. Umbenannte Entity-IDs werden dadurch weiterhin zugeordnet; Namen oder Entity-Präfixe werden nicht geraten. Voraussetzung ist eine Smart-Irrigation-Version mit diesem Zonen-Endpunkt und den Kennungen `smart_irrigation_<id>_<Rolle>`, etwa die Version v2026.10.8, mit der die Funktion geprüft wurde.
-
-Unter **Sensoren überschreiben (optional)** lassen sich einzelne Zuordnungen anpassen. Explizit eingetragene Entitäten haben Vorrang; für andere Felder bleibt die automatische Zuordnung aktiv. Ist kein Bodenfeuchtesensor oder Ventil in Smart Irrigation hinterlegt, entfällt dessen Anzeige bis zur manuellen Zuordnung. Mehrdeutige, deaktivierte oder nicht gefundene Berechnungssensoren erhalten einen Hinweis statt einer geratenen Zuordnung. API- oder Verbindungsfehler erscheinen ebenfalls in der Karte.
+YAML only needs the internal zone ID (`0` is valid):
 
 ```yaml
 type: custom:irrigation-zone-card
 zone: 0
-moisture_entity: sensor.mein_bodenfeuchtesensor # optionale Überschreibung
-show_control: false # optional nur den Ventilzustand anzeigen
 ```
 
-Ist dasselbe Ventil mehreren Zonen zugeordnet, kennzeichnet die Karte es als **Gemeinsames Ventil**. Ein manueller Schaltbefehl betrifft dieses gemeinsame Ventil. Die Auswahl einer Zone schafft keine unabhängige hydraulische Steuerung.
+The editor lists zone names and IDs. `zone` is **not a Home Assistant location zone** or a zone name. The card reads Smart Irrigation zones through `smart_irrigation/zones` and finds their sensors using stable `unique_id` identifiers in the HA entity registry. Renamed entity IDs still work; names and entity prefixes are not guessed. This requires a Smart Irrigation version with that zone endpoint and identifiers in the form `smart_irrigation_<id>_<role>`, such as v2026.10.8, which was used for validation.
 
-Ein Zonenwechsel im Editor löscht bisherige Sensorüberschreibungen und den eigenen Namen, damit die neue Zone ihre Zuordnungen erhält. Danach können neue Überschreibungen gesetzt werden. Manuelle Konfiguration ohne `zone` bleibt vollständig unterstützt; unter **Manuell konfigurieren** sind die Einzelfelder aufgeklappt. Änderungen an den Smart-Irrigation-Zonen und im Entity-Registry werden bei verbundenem Dashboard nachgeladen. Mehrere Karten teilen sich die Lesezugriffe und geben ihre Abonnements beim Entfernen frei. Falls eine ältere Integration Änderungsabonnements nicht unterstützt, die Ansicht nach einer Änderung neu laden.
-
-## Beispiel: Vorgarten
+Use **Override sensors (optional)** to change individual assignments. Explicit entities take precedence; automatic discovery continues for other fields. If Smart Irrigation has no soil moisture sensor or valve assigned, that element is omitted until you assign one manually. Ambiguous, disabled, or missing calculation sensors produce a notice instead of a guessed assignment. API and connection errors also appear in the card.
 
 ```yaml
 type: custom:irrigation-zone-card
-name: Vorgarten
-entity: sensor.smart_irrigation_vorgarten
-irrigation_needed_entity: binary_sensor.smart_irrigation_vorgarten_irrigation_needed
-bucket_entity: sensor.smart_irrigation_vorgarten_live_bucket
-water_used_entity: sensor.smart_irrigation_vorgarten_water_used
-moisture_entity: sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit
-et_entity: sensor.smart_irrigation_vorgarten_et_value
-problem_entity: binary_sensor.smart_irrigation_vorgarten_problem
+zone: 0
+moisture_entity: sensor.my_soil_moisture # optional override
+show_control: false # optionally show the valve state without its control button
 ```
 
-Die Sensor-IDs im Beispiel an die eigene Zone anpassen. Optional eine Ventil-Entität ergänzen:
+If several zones share a valve, the card labels it **Shared valve**. A manual command operates that shared valve. Selecting a zone does not create independent hydraulic control.
+
+Changing zones in the editor clears existing sensor overrides and the custom name so that the new zone gets its own assignments. You can then add new overrides. Manual configuration without `zone` remains fully supported; **Configure manually** expands the individual fields. Zone and entity registry changes are reloaded while the dashboard is connected. Multiple cards share requests and release subscriptions when removed. If an older integration does not support change subscriptions, reload the view after making changes.
+
+## Example: front garden
 
 ```yaml
-valve_entity: switch.mein_zonenventil # alternativ valve.mein_zonenventil
+type: custom:irrigation-zone-card
+name: Front garden
+entity: sensor.smart_irrigation_front_garden
+irrigation_needed_entity: binary_sensor.smart_irrigation_front_garden_irrigation_needed
+bucket_entity: sensor.smart_irrigation_front_garden_live_bucket
+water_used_entity: sensor.smart_irrigation_front_garden_water_used
+moisture_entity: sensor.front_garden_soil_moisture
+et_entity: sensor.smart_irrigation_front_garden_et_value
+problem_entity: binary_sensor.smart_irrigation_front_garden_problem
+```
+
+Replace the example sensor IDs with the actual entities for your zone. Optionally add a valve entity:
+
+```yaml
+valve_entity: switch.my_zone_valve # alternatively valve.my_zone_valve
 show_control: true
 confirm_open: true
 ```
 
-Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlägt bei verfügbarer Zonen-ID die automatische Zonen-Konfiguration vor, andernfalls eine manuelle Konfiguration. Bestehende Karten aus v0.1.0 funktionieren unverändert weiter. Für eine Umstellung im Editor die Zone auswählen oder in YAML die bisherigen Einzelzuordnungen durch `zone` ersetzen.
+All fields are editable in the visual card editor. The card picker suggests automatic zone configuration when a zone ID is available, otherwise manual configuration. Existing v0.1.0 cards continue to work unchanged. To switch, select the zone in the editor or replace individual assignments with `zone` in YAML.
 
-## Optionen
+## Options
 
-| Feld | Standard | Bedeutung |
+| Field | Default | Meaning |
 | --- | --- | --- |
-| `zone` | optional | Smart-Irrigation-Zonen-ID; automatische Zuordnung aktivieren |
-| `entity` | ohne `zone` erforderlich | Smart-Irrigation-Dauersensor; mit `zone` optionale Überschreibung |
-| `name` | Zonenname bzw. Anzeigename des Sensors | Name der Zone |
-| `icon` | `mdi:sprinkler-variant` | Symbol im Kopf |
-| `irrigation_needed_entity` | optional | `binary_sensor`: `on` = Bedarf, `off` = kein Bedarf |
-| `bucket_entity` | optional | Live-Wasserbilanz-Sensor; mit `zone` automatisch zugeordnet |
-| `moisture_entity` | optional | Bodenfeuchte; Ringfüllung nur bei Einheit `%` |
-| `water_used_entity` | optional | Verbrauchssensor mit dessen Einheit und Bezugszeitraum |
-| `et_entity` | optional / mit `zone` automatisch | Sensor für angewandte ET (`et_value`) |
-| `problem_entity` | optional / mit `zone` automatisch | `binary_sensor` für Zonenprobleme (`problem`) |
-| `valve_entity` | optional | `switch.*` oder `valve.*` |
-| `show_rules` | `true` | Bewässerungsregeln und gemeldete Sperren bei Konfiguration mit `zone` anzeigen |
-| `show_control` | `true` | Manuelle Schaltfläche am Ventil anzeigen |
-| `confirm_open` | `true` | Bestätigung vor manuellem Öffnen |
-| `bucket_min` | negatives Skalenmaximum | Linkes Skalenende, kleiner als 0 |
-| `bucket_max` | `maximum_bucket` am Dauersensor, sonst `25` | Rechtes Skalenende, größer als 0, in der Einheit der Wasserbilanz |
-| `language` | `auto` | `auto`, `de` oder `en`; andere HA-Sprachen erhalten englische Texte |
+| `zone` | optional | Smart Irrigation zone ID; enables automatic discovery |
+| `entity` | required without `zone` | Smart Irrigation duration sensor; optional override with `zone` |
+| `name` | zone name or sensor friendly name | Zone name |
+| `icon` | `mdi:sprinkler-variant` | Header icon |
+| `irrigation_needed_entity` | optional | `binary_sensor`: `on` = demand, `off` = no demand |
+| `bucket_entity` | optional | Live water balance sensor; automatically assigned with `zone` |
+| `moisture_entity` | optional | Soil moisture; ring fill requires the `%` unit |
+| `water_used_entity` | optional | Water usage sensor, with its own unit and reporting period |
+| `et_entity` | optional / automatic with `zone` | Applied ET sensor (`et_value`) |
+| `problem_entity` | optional / automatic with `zone` | Zone problem `binary_sensor` (`problem`) |
+| `valve_entity` | optional | `switch.*` or `valve.*` |
+| `show_rules` | `true` | Show irrigation rules and reported holds when configured with `zone` |
+| `show_control` | `true` | Show the manual valve control button |
+| `confirm_open` | `true` | Ask for confirmation before opening manually |
+| `bucket_min` | negative of the scale maximum | Left end of the scale, below 0 |
+| `bucket_max` | duration sensor's `maximum_bucket`, otherwise `25` | Right end of the scale, above 0, in the water balance unit |
+| `language` | `auto` | `auto`, `de`, or `en`; other HA languages use English text |
 
-Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und reduzierte Bewegung werden berücksichtigt. In Sections-Ansichten belegt die Karte standardmäßig 12 Spalten und automatische Höhe; die Breite ist über das HA-Layout anpassbar. Dauer, Verbrauch, Bodenfeuchte und angewandte ET öffnen per Klick ihren HA-Detaildialog. Die Wasserbilanz ist über Wert oder Skala anklickbar; ein Diagrammsymbol weist auf den verfügbaren Verlauf hin. Der Verlauf im nativen HA-Sensordialog hängt von den gespeicherten Recorder-Daten ab. Die Karte führt keinen eigenen Verlaufsspeicher und ändert keine Recorder-Einstellungen. Die Wasserbilanz lässt sich auch per Tastatur (Enter/Leertaste) öffnen.
+Numbers follow the Home Assistant user's locale. Light/dark themes and reduced motion preferences are respected. In Sections views, the card defaults to 12 columns and automatic height; adjust the width through HA's layout options. Click duration, usage, soil moisture, or applied ET to open the corresponding HA more-info dialog. Click the water balance value or scale to open its dialog; a chart icon indicates the available history. History in HA's native sensor dialog depends on stored Recorder data. The card does not store its own history or change Recorder settings. The water balance also supports keyboard activation with Enter or Space.
 
-### Bedeutung der Anzeigen
+### Understanding the display
 
-- **Wasserbilanz:** Der Nullpunkt trennt Defizit (negativ) und Vorrat (positiv). Der Marker wird auf die Skala begrenzt, der Zahlenwert bleibt unverändert. Die Bilanz ist keine gemessene Bodenfeuchte. `bucket_min`/`bucket_max` ändern nur die Visualisierung, keine Bewässerungseinstellungen. Skala und Sensor müssen dieselbe Einheit verwenden; die Karte rechnet keine Längenmaße um.
-- **Bodenfeuchte:** Der Ring zeigt den Sensorwert, ohne pauschale Gut-/Schlecht-Grenzen für unterschiedliche Böden zu erfinden. Außerhalb 0–100 % wird nur die Ringfüllung begrenzt. Andere Einheiten werden als Zahl ohne Füllung angezeigt.
-- **Dauer:** Berechnete Empfehlung, kein Countdown. Sekunden, Minuten und Stunden werden lesbar formatiert; unbekannte Einheiten bleiben erhalten.
-- **Wasserverbrauch:** Der Wert des Sensors, kein errechneter Tagesverbrauch. Den Bezugszeitraum bestimmt die verwendete Entität.
-- **Angewandte ET:** Eine kleine Kennzahl bei der Bilanz mit unverändertem Vorzeichen und der Einheit des Sensors. Ohne Bilanzsensor erscheint sie als eigene Zeile. Die Karte übernimmt den von Smart Irrigation als `et_value` veröffentlichten Wert, der auf dem gespeicherten Berechnungsdelta beruht. Sie interpretiert ihn nicht als reine Verdunstung, berechnet keinen Tageswert daraus und macht daraus keinen Live-Zähler. Der Detaildialog zeigt den zugehörigen Sensor. Fehlende Werte erscheinen als `—`, auch bei automatisch erwarteten, aber nicht gefundenen ET-Sensoren.
-- **Zonenproblem:** Bei `on` erscheint oberhalb des Bedarfsstatus ein auffälliger Warnhinweis. Bekannte Ursachen aus `reason` werden übersetzt (`valve_did_not_open`, `valve_did_not_close`, `no_flow`), andere Meldungen als sicher kodierter Text angezeigt. Ein Klick öffnet den Problemsensor. Ohne Ursache verweist die Karte auf dessen Details. Bei `off` entfällt der Warnbereich; fehlende, unbekannte oder nicht verfügbare Problemsensoren werden ausdrücklich als **Problemstatus unbekannt** angezeigt. Bei manueller Konfiguration ohne `problem_entity` entfällt die Funktion. Die Integration kann ein gemeldetes Problem bis zu einem erfolgreichen Lauf speichern; die Karte quittiert oder löscht es nicht. Ventilzustand und Schließen bleiben auch bei einer Warnung sichtbar.
-- **Status:** Ein aktives oder bewegtes Ventil hat Vorrang, danach gilt der Bedarfssensor. Ohne bekannten Bedarf zeigt die Karte „Wasserbedarf unbekannt“. „Ventil aktiv“ zeigt den gemeldeten Ventilzustand, keinen gemessenen Wasserfluss.
-- **Fehlende Daten:** `unknown`, `unavailable` und fehlende Entitäten erscheinen als `—` mit Hinweis. Sie werden nicht in 0 umgewandelt.
+- **Water balance:** zero separates a deficit (negative) from a reserve (positive). The marker is clamped to the scale; the numeric value is unchanged. The balance is not a measured soil moisture reading. `bucket_min`/`bucket_max` only change the visualization, not irrigation settings. The scale and sensor must use the same unit; the card does not convert length units.
+- **Soil moisture:** the ring shows the sensor reading without inventing universal good/bad thresholds for different soils. Outside 0–100%, only the ring fill is clamped. Other units appear as a number without ring fill.
+- **Duration:** a calculated recommendation, not a countdown. Seconds, minutes, and hours are formatted for readability; unknown units are preserved.
+- **Water usage:** the sensor's value, not a calculated daily total. The entity determines the reporting period.
+- **Applied ET:** a small value next to the water balance, preserving the sensor's sign and unit. Without a balance sensor, it appears on its own row. The card uses the `et_value` published by Smart Irrigation, which is based on the stored calculation delta. It does not interpret this as pure evaporation, derive a daily value, or turn it into a live counter. The more-info dialog opens the associated sensor. Missing values appear as `—`, including automatically expected ET sensors that were not found.
+- **Zone problem:** `on` displays a prominent warning above the demand status. Known `reason` values are translated (`valve_did_not_open`, `valve_did_not_close`, `no_flow`); other messages are displayed as safely escaped text. Clicking opens the problem sensor. If no cause is supplied, the card points to the sensor details. At `off`, the warning is hidden; missing, unknown, or unavailable problem sensors are explicitly shown as **Problem status unknown**. This feature is omitted for manual configurations without `problem_entity`. The integration may retain a reported problem until a successful run; the card does not acknowledge or clear it. Valve state and the close button remain visible during a warning.
+- **Status:** an active or moving valve takes priority, followed by the demand sensor. Without a known demand state, the card displays “Water demand unknown.” “Valve active” reflects the reported valve state, not measured water flow.
+- **Missing data:** `unknown`, `unavailable`, and missing entities appear as `—` with a notice. They are not converted into zero.
 
-### Bewässerungsregeln
+### Irrigation rules
 
-Mit `zone` liest die Karte auch die konfigurierten Regeln aus Smart Irrigation: **Defizitschwelle**, **Mindestabstand**, **Bodenfeuchte-Sperre** und **Laufzeitlimit**. Der Mindestabstand wird als zoneneigener oder global geerbter Wert gekennzeichnet. `0` Tage bleibt ein expliziter Wert ohne Abstandsregel; fehlende Daten erscheinen als unbekannt. Die Defizitschwelle ist eine Startschwelle und kein Zielwert für die Wasserbilanz. Saisonale Anpassungen können die tatsächlich angewandten Werte verändern.
+With `zone`, the card also reads the configured Smart Irrigation rules: **deficit threshold**, **minimum interval**, **soil moisture hold**, and **runtime limit**. The minimum interval is labeled as a zone-specific value or a globally inherited value. `0` days remains an explicit value with no interval restriction; missing data is shown as unknown. The deficit threshold is a start threshold, not a target water balance. Seasonal adjustments may change the values actually applied.
 
-![Bewässerungsregeln am Beispiel eines Rosenbeets](docs/rules-light.png)
+![Irrigation rules for a rose bed](docs/rules-light.png)
 
-Die Karte zeigt zusätzlich die von der Integration zuletzt gemeldeten Sperren für genau diese Zone (Bodenfeuchte und Mindestabstand) sowie einen Hinweis auf zentrale Schutzsperren. Sie berechnet keine eigene Startfreigabe aus Sensorwerten oder Datumsangaben. Ein fehlender Schutzstatus wird ausdrücklich angezeigt. Eigene Automationen müssen diese Regeln selbst berücksichtigen.
+The card also shows the integration's latest reported holds for this exact zone (soil moisture and minimum interval), plus a notice for central protection holds. It does not calculate its own permission to start from sensor readings or dates. Missing protection status is explicitly indicated. Your own automations must implement these rules themselves.
 
-Die Werte werden bei Konfigurationsänderungen neu gelesen; die Schutzvorschau aktualisiert sich zusätzlich einmal pro Minute. Alle Zonen- und Übersichtskarten teilen sich diese Systemabfragen. Einstellungen werden weiterhin in Smart Irrigation geändert. Manuelle Sensorzuweisungen ohne `zone` erhalten keine vermuteten Regeln; eine Zone kann mit manuellen Sensorüberschreibungen kombiniert werden. Mit `show_rules: false` oder im visuellen Editor lässt sich der Bereich ausblenden.
+Values are reloaded when configuration changes; the protection preview also refreshes once per minute. All zone and overview cards share these system requests. Settings are still changed in Smart Irrigation. Manual sensor assignments without `zone` do not receive guessed rules; a zone can be combined with manual sensor overrides. Hide this section with `show_rules: false` or through the visual editor.
 
-### Ventilsteuerung
+### Valve control
 
-Die Karte ruft `switch.turn_on`/`switch.turn_off` beziehungsweise `valve.open_valve`/`valve.close_valve` für genau die konfigurierte Entität auf. Bei Valves berücksichtigt sie die gemeldeten OPEN-/CLOSE-Funktionen. Bei unbekanntem Zustand oder bewegtem Ventil ist die Schaltfläche deaktiviert. Fehler werden in der Karte angezeigt; der Zustand kommt weiter von Home Assistant.
+The card calls `switch.turn_on`/`switch.turn_off` or `valve.open_valve`/`valve.close_valve` for exactly the configured entity. For valves, it respects the reported OPEN/CLOSE capabilities. The button is disabled when the state is unknown or the valve is moving. Errors appear in the card; state continues to come from Home Assistant.
 
-**Manuelles Öffnen startet keinen Abschalttimer und keine Smart-Irrigation-Automation.** Ein geöffnetes Ventil muss manuell oder durch eine bestehende Automation geschlossen werden. Daher gibt es standardmäßig eine Bestätigung beim Öffnen. Schließen ist direkt möglich. Mit `show_control: false` wird nur der Zustand dargestellt. Die Karte schreibt keine Smart-Irrigation-Bilanz zurück und verändert keine Automationen.
+**Opening manually does not start a shutoff timer or a Smart Irrigation automation.** An open valve must be closed manually or by an existing automation. Opening therefore requires confirmation by default. Closing is immediate. `show_control: false` displays the state only. The card does not write back to the Smart Irrigation water balance or modify automations.
 
-## Entwicklung und Vorschau
+## Development and preview
 
-Node.js 22 oder neuer:
+Node.js 22 or later:
 
 ```bash
 npm ci
@@ -191,31 +195,31 @@ npm run dev
 # http://localhost:5173
 ```
 
-Die lokale Vorschau zeigt drei Zonen mit **Beispieldaten**, darunter die bei der Entwicklung gelesenen Vorgartenwerte (3,52 mm, 100 %, 0 s). Buttons simulieren Zustandswechsel im Browser. Es werden keine Home-Assistant-Zugangsdaten benötigt und keine realen Ventile geschaltet. Symbole in der Vorschau sind lokale Platzhalter; im Dashboard zeichnet Home Assistant seine eigenen MDI-Icons. Der visuelle Editor verwendet das native `ha-form` und wird in Home Assistant dargestellt.
+The local preview shows three zones with **sample data**, including front garden readings captured during development (3.52 mm, 100%, 0 s). Buttons simulate state changes in the browser. No Home Assistant credentials are needed and no real valves are operated. Preview icons are local placeholders; Home Assistant renders its own MDI icons in the dashboard. The visual editor uses native `ha-form` and is rendered by Home Assistant.
 
-Die zentrale Vorschau unter `http://localhost:5173/demo/overview.html` zeigt geplanten Bedarf, Regensperre und Frostsperre mit Beispieldaten. Auch dort werden alle Aktionen ausschließlich im Browser simuliert.
+The central preview at `http://localhost:5173/demo/overview.html` shows planned demand, a rain hold, and a frost hold using sample data. All actions there are also simulated entirely in the browser.
 
 ```bash
 npx playwright install chromium
 npm run check
 ```
 
-Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Darstellung, Bestätigungsdialog, Serviceaufrufe, Fehler, HTML-Escaping, Detaildialog-Ereignis, Editor-Konfigurationsereignis und mobile Breite im Browser. Screenshots unter `test-results/`. Die Browserprüfungen verwenden simulierte HA-Objekte; eine Prüfung im echten HA-Frontend bleibt für eine Installation erforderlich.
+Checks cover configuration, units, status logic, scales, actuator actions, rendering, confirmation dialogs, service calls, errors, HTML escaping, more-info events, editor configuration events, and mobile width. Screenshots are saved under `test-results/`. Browser checks use simulated HA objects; an installation still needs verification in the actual HA frontend.
 
-Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
+Additional checks cover zone ID `0`, stable discovery after entity IDs are renamed, manual overrides, zone changes, shared valves, shared requests, subscription cleanup, and API errors. Discovery for all three sample zones was validated against real API responses without operating valves.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 24 Logiktests und 23 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 24 logic tests and 23 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
-`src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
+`src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
 
-## Referenzen
+## References
 
-- [Home Assistant: Custom Cards](https://contributors.home-assistant.io/frontend/custom-ui/card/)
-- [Home Assistant: Editor und Kartenwähler](https://contributors.home-assistant.io/frontend/custom-ui/card-editor/)
-- [Home Assistant: Valve-Zustände und Aktionen](https://www.home-assistant.io/integrations/valve/)
-- [HACS: Dashboard-Repository](https://www.hacs.xyz/docs/publish/plugin/)
-- [Smart Irrigation: Zonen-WebSocket](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/websockets.py)
-- [Smart Irrigation: stabile Sensor-Kennungen](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/sensor.py)
-- [Smart Irrigation: Problemstatus und Ursache](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/binary_sensor.py)
+- [Home Assistant: Custom cards](https://contributors.home-assistant.io/frontend/custom-ui/card/)
+- [Home Assistant: Editor and card picker](https://contributors.home-assistant.io/frontend/custom-ui/card-editor/)
+- [Home Assistant: Valve states and actions](https://www.home-assistant.io/integrations/valve/)
+- [HACS: Dashboard repository](https://www.hacs.xyz/docs/publish/plugin/)
+- [Smart Irrigation: Zone WebSocket](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/websockets.py)
+- [Smart Irrigation: Stable sensor identifiers](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/sensor.py)
+- [Smart Irrigation: Problem status and cause](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/binary_sensor.py)
 
-MIT-Lizenz.
+MIT license.
