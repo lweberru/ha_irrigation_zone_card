@@ -1,5 +1,7 @@
 // Local stand-ins for the HA elements. The shipped card uses HA's own icons and form.
 const paths = {
+  'mdi:tune-variant':'M3 6h6M13 6h8M9 3v6M3 12h12M19 12h2M15 9v6M3 18h2M9 18h12M5 15v6',
+  'mdi:water-minus-outline':'M12 2S4 10 4 15a8 8 0 0 0 11 7M12 2s8 8 8 13M15 18h8',
   'mdi:chart-line':'M3 3v18h18M6 16l5-5 4 2 6-8',
   'mdi:weather-sunny':'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10M12 1v2M12 21v2M1 12h2M21 12h2M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2',
   'mdi:alert-circle-outline':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20M12 6v7M12 17h.01',

@@ -21,7 +21,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.4.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.5.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -144,6 +144,7 @@ Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlä
 | `et_entity` | optional / mit `zone` automatisch | Sensor für angewandte ET (`et_value`) |
 | `problem_entity` | optional / mit `zone` automatisch | `binary_sensor` für Zonenprobleme (`problem`) |
 | `valve_entity` | optional | `switch.*` oder `valve.*` |
+| `show_rules` | `true` | Bewässerungsregeln und gemeldete Sperren bei Konfiguration mit `zone` anzeigen |
 | `show_control` | `true` | Manuelle Schaltfläche am Ventil anzeigen |
 | `confirm_open` | `true` | Bestätigung vor manuellem Öffnen |
 | `bucket_min` | negatives Skalenmaximum | Linkes Skalenende, kleiner als 0 |
@@ -162,6 +163,16 @@ Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und red
 - **Zonenproblem:** Bei `on` erscheint oberhalb des Bedarfsstatus ein auffälliger Warnhinweis. Bekannte Ursachen aus `reason` werden übersetzt (`valve_did_not_open`, `valve_did_not_close`, `no_flow`), andere Meldungen als sicher kodierter Text angezeigt. Ein Klick öffnet den Problemsensor. Ohne Ursache verweist die Karte auf dessen Details. Bei `off` entfällt der Warnbereich; fehlende, unbekannte oder nicht verfügbare Problemsensoren werden ausdrücklich als **Problemstatus unbekannt** angezeigt. Bei manueller Konfiguration ohne `problem_entity` entfällt die Funktion. Die Integration kann ein gemeldetes Problem bis zu einem erfolgreichen Lauf speichern; die Karte quittiert oder löscht es nicht. Ventilzustand und Schließen bleiben auch bei einer Warnung sichtbar.
 - **Status:** Ein aktives oder bewegtes Ventil hat Vorrang, danach gilt der Bedarfssensor. Ohne bekannten Bedarf zeigt die Karte „Wasserbedarf unbekannt“. „Ventil aktiv“ zeigt den gemeldeten Ventilzustand, keinen gemessenen Wasserfluss.
 - **Fehlende Daten:** `unknown`, `unavailable` und fehlende Entitäten erscheinen als `—` mit Hinweis. Sie werden nicht in 0 umgewandelt.
+
+### Bewässerungsregeln
+
+Mit `zone` liest die Karte auch die konfigurierten Regeln aus Smart Irrigation: **Defizitschwelle**, **Mindestabstand**, **Bodenfeuchte-Sperre** und **Laufzeitlimit**. Der Mindestabstand wird als zoneneigener oder global geerbter Wert gekennzeichnet. `0` Tage bleibt ein expliziter Wert ohne Abstandsregel; fehlende Daten erscheinen als unbekannt. Die Defizitschwelle ist eine Startschwelle und kein Zielwert für die Wasserbilanz. Saisonale Anpassungen können die tatsächlich angewandten Werte verändern.
+
+![Bewässerungsregeln am Beispiel eines Rosenbeets](docs/rules-light.png)
+
+Die Karte zeigt zusätzlich die von der Integration zuletzt gemeldeten Sperren für genau diese Zone (Bodenfeuchte und Mindestabstand) sowie einen Hinweis auf zentrale Schutzsperren. Sie berechnet keine eigene Startfreigabe aus Sensorwerten oder Datumsangaben. Ein fehlender Schutzstatus wird ausdrücklich angezeigt. Eigene Automationen müssen diese Regeln selbst berücksichtigen.
+
+Die Werte werden bei Konfigurationsänderungen neu gelesen; die Schutzvorschau aktualisiert sich zusätzlich einmal pro Minute. Alle Zonen- und Übersichtskarten teilen sich diese Systemabfragen. Einstellungen werden weiterhin in Smart Irrigation geändert. Manuelle Sensorzuweisungen ohne `zone` erhalten keine vermuteten Regeln; eine Zone kann mit manuellen Sensorüberschreibungen kombiniert werden. Mit `show_rules: false` oder im visuellen Editor lässt sich der Bereich ausblenden.
 
 ### Ventilsteuerung
 
@@ -193,7 +204,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 21 Logiktests und 22 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 24 Logiktests und 23 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

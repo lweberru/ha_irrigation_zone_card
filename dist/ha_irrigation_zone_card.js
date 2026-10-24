@@ -1,4 +1,189 @@
-/* Irrigation Zone Card v0.4.0 | MIT License */
+/* Irrigation Zone Card v0.5.0 | MIT License */
+
+// src/overview-data.js
+var readers = /* @__PURE__ */ new WeakMap();
+function watchOverview(hass, callback) {
+  const key = hass.connection || hass;
+  let reader = readers.get(key);
+  if (!reader) {
+    reader = { hass, listeners: /* @__PURE__ */ new Set(), snapshot: null, pending: false, again: false, cleanup: [], timer: null };
+    readers.set(key, reader);
+  }
+  reader.hass = hass;
+  reader.listeners.add(callback);
+  if (reader.snapshot) callback(reader.snapshot);
+  const refresh = async () => {
+    if (reader.pending) {
+      reader.again = true;
+      return;
+    }
+    reader.pending = true;
+    const results = await Promise.allSettled(["info", "config"].map((path) => Promise.resolve().then(() => reader.hass.callWS({ type: `smart_irrigation/${path}` }))));
+    const valid = (result) => result.status === "fulfilled" && result.value !== null && typeof result.value === "object" && !Array.isArray(result.value);
+    reader.snapshot = { info: valid(results[0]) ? results[0].value : null, config: valid(results[1]) ? results[1].value : null, error: results.some((result) => !valid(result)) };
+    reader.pending = false;
+    for (const listener of reader.listeners) listener(reader.snapshot);
+    if (reader.again && reader.listeners.size) {
+      reader.again = false;
+      void refresh();
+    }
+  };
+  if (reader.listeners.size === 1) {
+    const connection = hass.connection;
+    if (connection?.subscribeMessage) Promise.resolve(connection.subscribeMessage(refresh, { type: "smart_irrigation_config_updated" })).then((unsubscribe) => {
+      if (reader.listeners.size) reader.cleanup.push(unsubscribe);
+      else unsubscribe();
+    }).catch(() => {
+    });
+    if (connection?.addEventListener) {
+      connection.addEventListener("ready", refresh);
+      reader.cleanup.push(() => connection.removeEventListener("ready", refresh));
+    }
+    reader.timer = setInterval(refresh, 6e4);
+    reader.timer.unref?.();
+    void refresh();
+  }
+  return { refresh, unsubscribe: () => {
+    reader.listeners.delete(callback);
+    if (!reader.listeners.size) {
+      clearInterval(reader.timer);
+      reader.cleanup.splice(0).forEach((cleanup) => cleanup());
+      readers.delete(key);
+    }
+  } };
+}
+
+// src/model.js
+var entityKeys = ["entity", "irrigation_needed_entity", "bucket_entity", "water_used_entity", "moisture_entity", "valve_entity", "et_entity", "problem_entity"];
+function numeric(value) {
+  if (value === null || value === void 0 || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+var clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+function validateConfig(config) {
+  const zone = config?.zone !== void 0 && config.zone !== "";
+  if (zone && !(typeof config.zone === "number" && Number.isSafeInteger(config.zone) && config.zone >= 0 || typeof config.zone === "string" && /^(0|[1-9]\d*)$/.test(config.zone) && Number.isSafeInteger(Number(config.zone)))) {
+    throw new Error("zone must be a non-negative Smart Irrigation zone ID.");
+  }
+  if ((!zone || config.entity) && (typeof config?.entity !== "string" || !/^sensor\.[a-z0-9_]+$/.test(config.entity))) {
+    throw new Error("Select a Smart Irrigation zone or define a duration sensor entity.");
+  }
+  for (const key of entityKeys.slice(1)) {
+    if (config[key] !== void 0 && config[key] !== "" && (typeof config[key] !== "string" || !/^[a-z_]+\.[a-z0-9_]+$/.test(config[key]))) {
+      throw new Error(`${key}: invalid entity ID`);
+    }
+  }
+  if (config.valve_entity && !/^(switch|valve)\./.test(config.valve_entity)) throw new Error("valve_entity must be a switch or valve.");
+  for (const key of ["irrigation_needed_entity", "problem_entity"]) {
+    if (config[key] && !config[key].startsWith("binary_sensor.")) throw new Error(`${key} must be a binary_sensor.`);
+  }
+  for (const key of ["bucket_entity", "water_used_entity", "moisture_entity", "et_entity"]) {
+    if (config[key] && !config[key].startsWith("sensor.")) throw new Error(`${key} must be a sensor.`);
+  }
+  for (const key of ["bucket_min", "bucket_max"]) {
+    if (config[key] !== void 0 && (typeof config[key] !== "number" || !Number.isFinite(config[key]))) throw new Error(`${key} must be a finite number.`);
+  }
+  if (config.bucket_min !== void 0 && config.bucket_min >= 0) throw new Error("bucket_min must be below zero.");
+  if (config.bucket_max !== void 0 && config.bucket_max <= 0) throw new Error("bucket_max must be above zero.");
+  for (const key of ["show_control", "confirm_open", "show_rules"]) {
+    if (config[key] !== void 0 && typeof config[key] !== "boolean") throw new Error(`${key} must be a boolean.`);
+  }
+  if (config.language !== void 0 && !["auto", "de", "en"].includes(config.language)) throw new Error("language must be auto, de or en.");
+  for (const key of ["name", "icon"]) if (config[key] !== void 0 && typeof config[key] !== "string") throw new Error(`${key} must be a string.`);
+  return { show_control: true, confirm_open: true, show_rules: true, ...config };
+}
+function valveAction(entityId, state, features = 3) {
+  const domain = entityId?.split(".")[0];
+  if (domain === "switch" && ["on", "off"].includes(state)) return { domain, service: state === "on" ? "turn_off" : "turn_on" };
+  if (domain !== "valve") return null;
+  if (state === "open" && features & 2) return { domain, service: "close_valve" };
+  if (state === "closed" && features & 1) return { domain, service: "open_valve" };
+  return null;
+}
+function zoneModel(config, states) {
+  const main = states[config.entity];
+  const bucket = states[config.bucket_entity];
+  const valve = states[config.valve_entity];
+  const needed = states[config.irrigation_needed_entity]?.state;
+  const active = ["on", "open", "opening", "closing"].includes(valve?.state);
+  const balance = numeric(bucket?.state);
+  const capacity = numeric(main?.attributes?.maximum_bucket);
+  const max = config.bucket_max ?? (capacity > 0 ? capacity : 25);
+  const min = config.bucket_min ?? -max;
+  const position = balance === null ? null : clamp((balance - min) / (max - min) * 100, 0, 100);
+  const zero = -min / (max - min) * 100;
+  const moistureEntity = states[config.moisture_entity];
+  const moisture = numeric(moistureEntity?.state);
+  const moisturePercent = moistureEntity?.attributes?.unit_of_measurement === "%" && moisture !== null;
+  const status = active ? "watering" : needed === "on" ? "needed" : needed === "off" ? "balanced" : "unknown";
+  const problemEntity = states[config.problem_entity];
+  const problem = config.problem_entity || config._problemExpected ? problemEntity?.state === "on" ? "active" : problemEntity?.state === "off" ? "clear" : "unknown" : null;
+  const reason = problemEntity?.attributes?.reason;
+  const problemReason = problem === "active" && typeof reason === "string" && reason.trim() ? reason.trim() : null;
+  return {
+    main,
+    balance,
+    min,
+    max,
+    zero,
+    position,
+    moisture,
+    et: numeric(states[config.et_entity]?.state),
+    problem,
+    problemReason,
+    moisturePercent,
+    moistureFill: moisturePercent ? clamp(moisture, 0, 100) : 0,
+    status,
+    active,
+    valve,
+    action: config.valve_entity ? valveAction(config.valve_entity, valve?.state, valve?.attributes?.supported_features ?? 0) : null
+  };
+}
+function durationParts(state) {
+  const value = numeric(state?.state);
+  if (value === null) return null;
+  const factor = { s: 1, sec: 1, min: 60, h: 3600 }[state?.attributes?.unit_of_measurement];
+  if (!factor) return { raw: true, value, unit: state?.attributes?.unit_of_measurement || "" };
+  const seconds = Math.max(0, Math.round(value * factor));
+  if (seconds < 60) return { value: seconds, unit: "s" };
+  if (seconds < 3600) return { value: Math.floor(seconds / 60), unit: "min", remainder: seconds % 60, remainderUnit: "s" };
+  return { value: Math.floor(seconds / 3600), unit: "h", remainder: Math.floor(seconds % 3600 / 60), remainderUnit: "min" };
+}
+
+// src/rules.js
+function zoneRules(config, discovery, system) {
+  if (config.show_rules === false || config.zone === void 0 || config.zone === "") return null;
+  const zone = discovery?.zones?.find((item) => String(item.id) === String(config.zone));
+  if (!zone) return null;
+  const ownDays = numeric(zone.days_between_irrigation);
+  const rawChecks = system?.info?.skip_preview?.checks;
+  const checks = Array.isArray(rawChecks) ? rawChecks : null;
+  const dayCheck = checks?.find((item) => item.id === "days_between");
+  const soilCheck = checks?.find((item) => item.id === "soil_moisture");
+  const soil = soilCheck?.zones?.find((item) => String(item.zone_id) === String(zone.id));
+  const unit = system?.config?.stored_units || system?.config?.units;
+  const held = [];
+  if (dayCheck?.enabled === true && dayCheck.available === true && dayCheck.zones_held?.some((item) => String(item?.zone_id ?? item?.id ?? item) === String(zone.id))) held.push("intervalHeld");
+  if (soilCheck?.enabled === true && soilCheck.available === true && soil?.held === true) held.push("moistureHeld");
+  const globalHolds = checks?.filter((item) => !["days_between", "soil_moisture"].includes(item.id) && item.enabled === true && item.available === true && item.skip === true) || [];
+  if (globalHolds.length) held.push("globalHeld");
+  return {
+    threshold: numeric(zone.irrigation_threshold),
+    unit: unit === "metric" ? "mm" : unit === "imperial" ? "in" : null,
+    days: ownDays ?? numeric(system?.config?.days_between_irrigation),
+    inherited: ownDays === null,
+    moisture: zone.soil_moisture_sensor ? numeric(zone.soil_moisture_threshold) : null,
+    hasMoisture: !!zone.soil_moisture_sensor,
+    maxSeconds: numeric(zone.maximum_duration),
+    held,
+    checksKnown: !!checks?.length && !system?.error && checks.every((item) => item.enabled !== true || item.available === true)
+  };
+}
+var ruleLabels = {
+  de: { title: "Bew\xE4sserungsregeln", threshold: "Defizitschwelle", thresholdHint: "Konfigurierte Startschwelle \xB7 kein Zielwert der Wasserbilanz", interval: "Mindestabstand", day: "Tag", days: "Tage", own: "Zone", global: "Global", moisture: "Bodenfeuchte-Sperre", noSensor: "Kein Sensor", at: "ab", limit: "Laufzeitlimit", unlimited: "Ohne Limit", intervalHeld: "Mindestabstand noch nicht erreicht", moistureHeld: "Bodenfeuchte h\xE4lt die Zone zur\xFCck", globalHeld: "Zentrale Schutzpr\xFCfung h\xE4lt den Start zur\xFCck", unknown: "Aktuelle Schutzpr\xFCfung nicht verf\xFCgbar", source: "Konfigurierte Werte \xB7 \xC4nderungen in Smart Irrigation" },
+  en: { title: "Irrigation rules", threshold: "Deficit threshold", thresholdHint: "Configured start threshold \xB7 not a water balance target", interval: "Minimum interval", day: "day", days: "days", own: "Zone", global: "Global", moisture: "Soil moisture hold", noSensor: "No sensor", at: "from", limit: "Runtime limit", unlimited: "No limit", intervalHeld: "Minimum interval not yet reached", moistureHeld: "Soil moisture is holding this zone", globalHeld: "A central protection check is holding the start", unknown: "Current protection preview unavailable", source: "Configured values \xB7 edit in Smart Irrigation" }
+};
 
 // src/styles.js
 var styles = `
@@ -80,105 +265,22 @@ button:disabled { cursor:default; opacity:.55; }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
 @container (max-width:340px) { .wrap { padding:18px; } .overview { gap:16px; } .ring { width:112px; height:112px; } .ring-value { font-size:27px; } .balance-value { font-size:25px; } .stat { padding:13px; } }
 @container (max-width:260px) { .overview { flex-direction:column; align-items:stretch; } .ring { margin:auto; } .stats { grid-template-columns:1fr; } .control { flex-wrap:wrap; } }
-`;
 
-// src/model.js
-var entityKeys = ["entity", "irrigation_needed_entity", "bucket_entity", "water_used_entity", "moisture_entity", "valve_entity", "et_entity", "problem_entity"];
-function numeric(value) {
-  if (value === null || value === void 0 || String(value).trim() === "") return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-var clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-function validateConfig(config) {
-  const zone = config?.zone !== void 0 && config.zone !== "";
-  if (zone && !(typeof config.zone === "number" && Number.isSafeInteger(config.zone) && config.zone >= 0 || typeof config.zone === "string" && /^(0|[1-9]\d*)$/.test(config.zone) && Number.isSafeInteger(Number(config.zone)))) {
-    throw new Error("zone must be a non-negative Smart Irrigation zone ID.");
-  }
-  if ((!zone || config.entity) && (typeof config?.entity !== "string" || !/^sensor\.[a-z0-9_]+$/.test(config.entity))) {
-    throw new Error("Select a Smart Irrigation zone or define a duration sensor entity.");
-  }
-  for (const key of entityKeys.slice(1)) {
-    if (config[key] !== void 0 && config[key] !== "" && (typeof config[key] !== "string" || !/^[a-z_]+\.[a-z0-9_]+$/.test(config[key]))) {
-      throw new Error(`${key}: invalid entity ID`);
-    }
-  }
-  if (config.valve_entity && !/^(switch|valve)\./.test(config.valve_entity)) throw new Error("valve_entity must be a switch or valve.");
-  for (const key of ["irrigation_needed_entity", "problem_entity"]) {
-    if (config[key] && !config[key].startsWith("binary_sensor.")) throw new Error(`${key} must be a binary_sensor.`);
-  }
-  for (const key of ["bucket_entity", "water_used_entity", "moisture_entity", "et_entity"]) {
-    if (config[key] && !config[key].startsWith("sensor.")) throw new Error(`${key} must be a sensor.`);
-  }
-  for (const key of ["bucket_min", "bucket_max"]) {
-    if (config[key] !== void 0 && (typeof config[key] !== "number" || !Number.isFinite(config[key]))) throw new Error(`${key} must be a finite number.`);
-  }
-  if (config.bucket_min !== void 0 && config.bucket_min >= 0) throw new Error("bucket_min must be below zero.");
-  if (config.bucket_max !== void 0 && config.bucket_max <= 0) throw new Error("bucket_max must be above zero.");
-  for (const key of ["show_control", "confirm_open"]) {
-    if (config[key] !== void 0 && typeof config[key] !== "boolean") throw new Error(`${key} must be a boolean.`);
-  }
-  if (config.language !== void 0 && !["auto", "de", "en"].includes(config.language)) throw new Error("language must be auto, de or en.");
-  for (const key of ["name", "icon"]) if (config[key] !== void 0 && typeof config[key] !== "string") throw new Error(`${key} must be a string.`);
-  return { show_control: true, confirm_open: true, ...config };
-}
-function valveAction(entityId, state, features = 3) {
-  const domain = entityId?.split(".")[0];
-  if (domain === "switch" && ["on", "off"].includes(state)) return { domain, service: state === "on" ? "turn_off" : "turn_on" };
-  if (domain !== "valve") return null;
-  if (state === "open" && features & 2) return { domain, service: "close_valve" };
-  if (state === "closed" && features & 1) return { domain, service: "open_valve" };
-  return null;
-}
-function zoneModel(config, states) {
-  const main = states[config.entity];
-  const bucket = states[config.bucket_entity];
-  const valve = states[config.valve_entity];
-  const needed = states[config.irrigation_needed_entity]?.state;
-  const active = ["on", "open", "opening", "closing"].includes(valve?.state);
-  const balance = numeric(bucket?.state);
-  const capacity = numeric(main?.attributes?.maximum_bucket);
-  const max = config.bucket_max ?? (capacity > 0 ? capacity : 25);
-  const min = config.bucket_min ?? -max;
-  const position = balance === null ? null : clamp((balance - min) / (max - min) * 100, 0, 100);
-  const zero = -min / (max - min) * 100;
-  const moistureEntity = states[config.moisture_entity];
-  const moisture = numeric(moistureEntity?.state);
-  const moisturePercent = moistureEntity?.attributes?.unit_of_measurement === "%" && moisture !== null;
-  const status = active ? "watering" : needed === "on" ? "needed" : needed === "off" ? "balanced" : "unknown";
-  const problemEntity = states[config.problem_entity];
-  const problem = config.problem_entity || config._problemExpected ? problemEntity?.state === "on" ? "active" : problemEntity?.state === "off" ? "clear" : "unknown" : null;
-  const reason = problemEntity?.attributes?.reason;
-  const problemReason = problem === "active" && typeof reason === "string" && reason.trim() ? reason.trim() : null;
-  return {
-    main,
-    balance,
-    min,
-    max,
-    zero,
-    position,
-    moisture,
-    et: numeric(states[config.et_entity]?.state),
-    problem,
-    problemReason,
-    moisturePercent,
-    moistureFill: moisturePercent ? clamp(moisture, 0, 100) : 0,
-    status,
-    active,
-    valve,
-    action: config.valve_entity ? valveAction(config.valve_entity, valve?.state, valve?.attributes?.supported_features ?? 0) : null
-  };
-}
-function durationParts(state) {
-  const value = numeric(state?.state);
-  if (value === null) return null;
-  const factor = { s: 1, sec: 1, min: 60, h: 3600 }[state?.attributes?.unit_of_measurement];
-  if (!factor) return { raw: true, value, unit: state?.attributes?.unit_of_measurement || "" };
-  const seconds = Math.max(0, Math.round(value * factor));
-  if (seconds < 60) return { value: seconds, unit: "s" };
-  if (seconds < 3600) return { value: Math.floor(seconds / 60), unit: "min", remainder: seconds % 60, remainderUnit: "s" };
-  return { value: Math.floor(seconds / 3600), unit: "h", remainder: Math.floor(seconds % 3600 / 60), remainderUnit: "min" };
-}
+.rules { margin:20px 0; padding:16px 0 0; border-top:1px solid var(--divider-color,#e1e9e3); }
+.rules-heading { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:650; color:var(--iz-green); margin-bottom:14px; }
+.rules-heading ha-icon { --mdc-icon-size:18px; }
+.rules-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 12px; }
+.rule { display:flex; gap:8px; min-width:0; align-items:flex-start; }
+.rule > ha-icon { --mdc-icon-size:18px; color:var(--secondary-text-color,#77877f); flex-shrink:0; margin-top:2px; }
+.rule .label { font-size:10px; overflow-wrap:anywhere; }
+.rule-value { font-size:15px; font-weight:650; margin-top:3px; overflow-wrap:anywhere; }
+.rule-value small { font-size:11px; font-weight:500; }
+.rule-source { font-size:10px; color:var(--secondary-text-color,#77877f); margin-top:2px; }
+.rule-note { font-size:10px; line-height:1.6; color:var(--secondary-text-color,#77877f); margin-top:12px; }
+.rule-holds { padding:10px; margin-top:14px; border-radius:12px; color:var(--iz-amber); background:color-mix(in srgb,var(--iz-amber) 10%,transparent); font-size:11px; line-height:1.5; }
+.rule-holds > div { display:flex; gap:7px; align-items:center; }
+.rule-holds ha-icon { --mdc-icon-size:16px; flex-shrink:0; }
+`;
 
 // src/discovery.js
 var hasZone = (config) => config?.zone !== void 0 && config.zone !== "";
@@ -205,13 +307,13 @@ function resolveZone(config, discovery) {
   if (discovery.error) result._discoveryIssue = "discoveryFailed";
   return result;
 }
-var readers = /* @__PURE__ */ new WeakMap();
+var readers2 = /* @__PURE__ */ new WeakMap();
 function watchDiscovery(hass, callback) {
   const key = hass.connection || hass;
-  let reader = readers.get(key);
+  let reader = readers2.get(key);
   if (!reader) {
     reader = { listeners: /* @__PURE__ */ new Set(), snapshot: null, pending: false, again: false, cleanups: [] };
-    readers.set(key, reader);
+    readers2.set(key, reader);
   }
   reader.hass = hass;
   reader.listeners.add(callback);
@@ -257,7 +359,7 @@ function watchDiscovery(hass, callback) {
     reader.listeners.delete(callback);
     if (!reader.listeners.size) {
       reader.cleanups.splice(0).forEach((cleanup) => cleanup());
-      readers.delete(key);
+      readers2.delete(key);
     }
   };
 }
@@ -270,8 +372,8 @@ var labels = {
   de: { entity: "Berechnete Dauer (Smart Irrigation)", name: "Zonenname", icon: "Symbol", irrigation_needed_entity: "Bew\xE4sserung n\xF6tig", bucket_entity: "Wasserbilanz (live)", water_used_entity: "Wasserverbrauch", moisture_entity: "Bodenfeuchte", valve_entity: "Ventil (optional)", bucket_min: "Wasserbilanz: Skalenminimum (< 0)", bucket_max: "Wasserbilanz: Skalenmaximum (> 0)", show_control: "Manuelle Ventilsteuerung anzeigen", confirm_open: "Vor manuellem \xD6ffnen best\xE4tigen", language: "Sprache" },
   en: { entity: "Calculated duration (Smart Irrigation)", name: "Zone name", icon: "Icon", irrigation_needed_entity: "Irrigation needed", bucket_entity: "Water balance (live)", water_used_entity: "Water used", moisture_entity: "Soil moisture", valve_entity: "Valve (optional)", bucket_min: "Water balance: scale minimum (< 0)", bucket_max: "Water balance: scale maximum (> 0)", show_control: "Show manual valve control", confirm_open: "Confirm before opening manually", language: "Language" }
 };
-Object.assign(labels.de, { zone: "Smart-Irrigation-Zone", overrides: "Sensoren \xFCberschreiben (optional)", et_entity: "Angewandte ET", problem_entity: "Zonenproblem" });
-Object.assign(labels.en, { zone: "Smart Irrigation zone", overrides: "Override sensors (optional)", et_entity: "Applied ET", problem_entity: "Zone problem" });
+Object.assign(labels.de, { show_rules: "Bew\xE4sserungsregeln anzeigen", zone: "Smart-Irrigation-Zone", overrides: "Sensoren \xFCberschreiben (optional)", et_entity: "Angewandte ET", problem_entity: "Zonenproblem" });
+Object.assign(labels.en, { show_rules: "Show irrigation rules", zone: "Smart Irrigation zone", overrides: "Override sensors (optional)", et_entity: "Applied ET", problem_entity: "Zone problem" });
 var IrrigationZoneEditor = class extends HTMLElement {
   constructor() {
     super();
@@ -338,6 +440,7 @@ var IrrigationZoneEditor = class extends HTMLElement {
       { name: "zone", selector: { select: { options } } },
       { name: "name", selector: { text: {} } },
       { name: "icon", selector: { icon: {} } },
+      { name: "show_rules", selector: { boolean: {} } },
       { name: "show_control", selector: { boolean: {} } },
       { name: "confirm_open", selector: { boolean: {} } },
       { name: "language", selector: { select: { options: [{ value: "auto", label: "Auto" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } }
@@ -349,7 +452,7 @@ var IrrigationZoneEditor = class extends HTMLElement {
     ];
     for (const form of [this._form, this._overrides]) {
       form.hass = this._hass;
-      form.data = { show_control: true, confirm_open: true, language: "auto", ...this._config, zone: hasZone(this._config) ? String(this._config.zone) : "" };
+      form.data = { show_rules: true, show_control: true, confirm_open: true, language: "auto", ...this._config, zone: hasZone(this._config) ? String(this._config.zone) : "" };
       form.computeLabel = label;
     }
     this.shadowRoot.querySelector("summary").textContent = label({ name: "overrides" });
@@ -358,59 +461,6 @@ var IrrigationZoneEditor = class extends HTMLElement {
   }
 };
 if (!customElements.get("irrigation-zone-card-editor")) customElements.define("irrigation-zone-card-editor", IrrigationZoneEditor);
-
-// src/overview-data.js
-var readers2 = /* @__PURE__ */ new WeakMap();
-function watchOverview(hass, callback) {
-  const key = hass.connection || hass;
-  let reader = readers2.get(key);
-  if (!reader) {
-    reader = { hass, listeners: /* @__PURE__ */ new Set(), snapshot: null, pending: false, again: false, cleanup: [], timer: null };
-    readers2.set(key, reader);
-  }
-  reader.hass = hass;
-  reader.listeners.add(callback);
-  if (reader.snapshot) callback(reader.snapshot);
-  const refresh = async () => {
-    if (reader.pending) {
-      reader.again = true;
-      return;
-    }
-    reader.pending = true;
-    const results = await Promise.allSettled(["info", "config"].map((path) => Promise.resolve().then(() => reader.hass.callWS({ type: `smart_irrigation/${path}` }))));
-    const valid = (result) => result.status === "fulfilled" && result.value !== null && typeof result.value === "object" && !Array.isArray(result.value);
-    reader.snapshot = { info: valid(results[0]) ? results[0].value : null, config: valid(results[1]) ? results[1].value : null, error: results.some((result) => !valid(result)) };
-    reader.pending = false;
-    for (const listener of reader.listeners) listener(reader.snapshot);
-    if (reader.again && reader.listeners.size) {
-      reader.again = false;
-      void refresh();
-    }
-  };
-  if (reader.listeners.size === 1) {
-    const connection = hass.connection;
-    if (connection?.subscribeMessage) Promise.resolve(connection.subscribeMessage(refresh, { type: "smart_irrigation_config_updated" })).then((unsubscribe) => {
-      if (reader.listeners.size) reader.cleanup.push(unsubscribe);
-      else unsubscribe();
-    }).catch(() => {
-    });
-    if (connection?.addEventListener) {
-      connection.addEventListener("ready", refresh);
-      reader.cleanup.push(() => connection.removeEventListener("ready", refresh));
-    }
-    reader.timer = setInterval(refresh, 6e4);
-    reader.timer.unref?.();
-    void refresh();
-  }
-  return { refresh, unsubscribe: () => {
-    reader.listeners.delete(callback);
-    if (!reader.listeners.size) {
-      clearInterval(reader.timer);
-      reader.cleanup.splice(0).forEach((cleanup) => cleanup());
-      readers2.delete(key);
-    }
-  } };
-}
 
 // src/overview-model.js
 var overviewEntityKeys = ["automation_entity", "main_valve_entity", "calculate_entity", "update_weather_entity", "precipitation_switch_entity", "precipitation_threshold_entity"];
@@ -745,6 +795,9 @@ var IrrigationZoneCard = class extends HTMLElement {
     this._unwatch?.();
     this._unwatch = null;
     this._connection = null;
+    this._systemReader?.unsubscribe();
+    this._systemReader = null;
+    this._systemConnection = null;
   }
   setConfig(config) {
     this._config = validateConfig(config);
@@ -752,6 +805,7 @@ var IrrigationZoneCard = class extends HTMLElement {
     this._render();
   }
   _watchDiscovery() {
+    this._watchRules();
     const connection = this._hass?.connection || this._hass;
     if (!this.isConnected || !hasZone(this._config) || !this._hass?.callWS) {
       if (!hasZone(this._config)) {
@@ -771,6 +825,36 @@ var IrrigationZoneCard = class extends HTMLElement {
       this._render();
     });
   }
+  _watchRules() {
+    const connection = this._hass?.connection || this._hass;
+    const enabled = this.isConnected && hasZone(this._config) && this._config.show_rules !== false && this._hass?.callWS;
+    if (!enabled || connection !== this._systemConnection) {
+      this._systemReader?.unsubscribe();
+      this._systemReader = null;
+      this._systemConnection = null;
+      this._system = null;
+    }
+    if (enabled && !this._systemReader) {
+      this._systemConnection = connection;
+      this._systemReader = watchOverview(this._hass, (snapshot) => {
+        this._system = snapshot;
+        this._render();
+      });
+    }
+  }
+  _rulesHTML(config, lang) {
+    const rules = zoneRules(config, this._discovery, this._system);
+    if (!rules) return "";
+    const t = ruleLabels[lang?.startsWith("de") ? "de" : "en"];
+    const value = (number, unit) => number === null ? "\u2014" : `${escape(unit === "in" ? new Intl.NumberFormat(this._hass.locale?.language || this._hass.language || "en", { maximumFractionDigits: 3 }).format(number) : this._number(number))} <small>${escape(unit)}</small>`;
+    const tiles = [
+      ["mdi:water-minus-outline", t.threshold, rules.unit ? value(rules.threshold, rules.unit) : "\u2014", t.thresholdHint],
+      ["mdi:calendar-clock", t.interval, value(rules.days, rules.days === 1 ? t.day : t.days), rules.inherited ? t.global : t.own],
+      ["mdi:sprout", t.moisture, rules.hasMoisture ? `${escape(t.at)} ${value(rules.moisture, "%")}` : escape(t.noSensor), ""],
+      ["mdi:timer-outline", t.limit, rules.maxSeconds === null ? "\u2014" : rules.maxSeconds === 0 ? escape(t.unlimited) : value(rules.maxSeconds >= 60 ? rules.maxSeconds / 60 : rules.maxSeconds, rules.maxSeconds >= 60 ? "min" : "s"), ""]
+    ];
+    return `<section class="rules" aria-label="${escape(t.title)}"><div class="rules-heading">${icon2("mdi:tune-variant")}<span>${escape(t.title)}</span></div><div class="rules-grid">${tiles.map(([symbol, label, content, hint]) => `<div class="rule" title="${escape(hint)}">${icon2(symbol)}<div><div class="label">${escape(label)}</div><div class="rule-value">${content}</div>${hint && label === t.interval ? `<div class="rule-source">${escape(hint)}</div>` : ""}</div></div>`).join("")}</div>${rules.held.length ? `<div class="rule-holds" role="status">${rules.held.map((key) => `<div>${icon2("mdi:pause-circle-outline")}${escape(t[key])}</div>`).join("")}</div>` : ""}${!rules.checksKnown ? `<div class="rule-note">${escape(t.unknown)}</div>` : ""}<div class="rule-note">${escape(t.source)}</div></section>`;
+  }
   _resolved() {
     return resolveZone(this._config, this._discovery);
   }
@@ -784,7 +868,8 @@ var IrrigationZoneCard = class extends HTMLElement {
     if (!old || old.language !== value.language || old.locale !== value.locale || old.themes !== value.themes || !sameEntities(previous, resolved) || entityKeys.some((key) => old.states[resolved[key]] !== value.states[resolved[key]])) this._render();
   }
   getCardSize() {
-    return this._config?.valve_entity ? 9 : 8;
+    const config = this._config ? this._resolved() : {};
+    return (config.valve_entity ? 9 : 8) + (hasZone(config) && config.show_rules !== false ? 4 : 0);
   }
   getGridOptions() {
     return { columns: 12, rows: "auto", min_columns: 6 };
@@ -872,6 +957,7 @@ var IrrigationZoneCard = class extends HTMLElement {
       ${!config.bucket_entity ? etHTML : ""}
       <div class="stats"><button class="stat" data-entity="${escape(config.entity)}">${icon2("mdi:timer-outline")}<div><div class="stat-value">${durationHTML}</div><div class="label">${escape(t.duration)}</div></div></button>
       ${config.water_used_entity ? `<button class="stat" data-entity="${escape(config.water_used_entity)}">${icon2("mdi:water-outline")}<div><div class="stat-value">${escape(this._state(config.water_used_entity))}</div><div class="label">${escape(t.used)}</div></div></button>` : ""}</div>
+      ${this._rulesHTML(config, lang)}
       ${config.valve_entity ? `<div class="control">${icon2(m.active ? "mdi:pipe-valve" : "mdi:valve-closed")}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} \xB7 ${escape(valveState)}</div><div class="control-state">${escape(t.manual)}</div></div>${config.show_control ? `<button id="control" class="${close ? "close" : ""}" ${!m.action || this._pending ? "disabled" : ""}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ""}</div>` : ""}
       ${config._discoveryIssue ? `<div class="notice" role="status">${escape(t[config._discoveryIssue])}</div>` : ""}
       ${config._autoMissing?.length ? `<div class="notice">${escape(t.autoMissing)}: ${config._autoMissing.map(escape).join(", ")}</div>` : ""}

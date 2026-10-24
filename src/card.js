@@ -1,3 +1,5 @@
+import { watchOverview } from './overview-data.js';
+import { zoneRules, ruleLabels } from './rules.js';
 import { styles } from './styles.js';
 import { entityKeys, validateConfig, zoneModel, durationParts } from './model.js';
 import './editor.js';
@@ -18,9 +20,10 @@ const icon = value => `<ha-icon icon="${escape(value)}"></ha-icon>`;
 export class IrrigationZoneCard extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode:'open' }); this._pending = false; }
   connectedCallback() { this._watchDiscovery(); }
-  disconnectedCallback() { this._unwatch?.(); this._unwatch = null; this._connection = null; }
+  disconnectedCallback() { this._unwatch?.(); this._unwatch = null; this._connection = null; this._systemReader?.unsubscribe(); this._systemReader = null; this._systemConnection = null; }
   setConfig(config) { this._config = validateConfig(config); this._watchDiscovery(); this._render(); }
   _watchDiscovery() {
+    this._watchRules();
     const connection = this._hass?.connection || this._hass;
     if (!this.isConnected || !hasZone(this._config) || !this._hass?.callWS) {
       if (!hasZone(this._config)) { this._unwatch?.(); this._unwatch = null; this._connection = null; this._discovery = null; }
@@ -29,6 +32,30 @@ export class IrrigationZoneCard extends HTMLElement {
     if (this._connection === connection) return;
     this._unwatch?.(); this._discovery = null; this._connection = connection;
     this._unwatch = watchDiscovery(this._hass, snapshot => { this._discovery = snapshot; this._render(); });
+  }
+  _watchRules() {
+    const connection = this._hass?.connection || this._hass;
+    const enabled = this.isConnected && hasZone(this._config) && this._config.show_rules !== false && this._hass?.callWS;
+    if (!enabled || connection !== this._systemConnection) {
+      this._systemReader?.unsubscribe(); this._systemReader = null; this._systemConnection = null; this._system = null;
+    }
+    if (enabled && !this._systemReader) {
+      this._systemConnection = connection;
+      this._systemReader = watchOverview(this._hass, snapshot => { this._system = snapshot; this._render(); });
+    }
+  }
+  _rulesHTML(config, lang) {
+    const rules = zoneRules(config, this._discovery, this._system);
+    if (!rules) return '';
+    const t = ruleLabels[lang?.startsWith('de') ? 'de' : 'en'];
+    const value = (number, unit) => number === null ? '—' : `${escape(unit === 'in' ? new Intl.NumberFormat(this._hass.locale?.language || this._hass.language || 'en',{maximumFractionDigits:3}).format(number) : this._number(number))} <small>${escape(unit)}</small>`;
+    const tiles = [
+      ['mdi:water-minus-outline',t.threshold,rules.unit ? value(rules.threshold,rules.unit) : '—',t.thresholdHint],
+      ['mdi:calendar-clock',t.interval,value(rules.days,rules.days === 1 ? t.day : t.days),rules.inherited ? t.global : t.own],
+      ['mdi:sprout',t.moisture,rules.hasMoisture ? `${escape(t.at)} ${value(rules.moisture,'%')}` : escape(t.noSensor),''],
+      ['mdi:timer-outline',t.limit,rules.maxSeconds === null ? '—' : rules.maxSeconds === 0 ? escape(t.unlimited) : value(rules.maxSeconds >= 60 ? rules.maxSeconds / 60 : rules.maxSeconds,rules.maxSeconds >= 60 ? 'min' : 's'),''],
+    ];
+    return `<section class="rules" aria-label="${escape(t.title)}"><div class="rules-heading">${icon('mdi:tune-variant')}<span>${escape(t.title)}</span></div><div class="rules-grid">${tiles.map(([symbol,label,content,hint])=>`<div class="rule" title="${escape(hint)}">${icon(symbol)}<div><div class="label">${escape(label)}</div><div class="rule-value">${content}</div>${hint && label === t.interval ? `<div class="rule-source">${escape(hint)}</div>` : ''}</div></div>`).join('')}</div>${rules.held.length ? `<div class="rule-holds" role="status">${rules.held.map(key=>`<div>${icon('mdi:pause-circle-outline')}${escape(t[key])}</div>`).join('')}</div>` : ''}${!rules.checksKnown ? `<div class="rule-note">${escape(t.unknown)}</div>` : ''}<div class="rule-note">${escape(t.source)}</div></section>`;
   }
   _resolved() { return resolveZone(this._config, this._discovery); }
   set hass(value) {
@@ -41,7 +68,7 @@ export class IrrigationZoneCard extends HTMLElement {
     if (!old || old.language !== value.language || old.locale !== value.locale || old.themes !== value.themes ||
       !sameEntities(previous, resolved) || entityKeys.some(key => old.states[resolved[key]] !== value.states[resolved[key]])) this._render();
   }
-  getCardSize() { return this._config?.valve_entity ? 9 : 8; }
+  getCardSize() { const config = this._config ? this._resolved() : {}; return (config.valve_entity ? 9 : 8) + (hasZone(config) && config.show_rules !== false ? 4 : 0); }
   getGridOptions() { return { columns:12, rows:'auto', min_columns:6 }; }
   static getConfigElement() { return document.createElement('irrigation-zone-card-editor'); }
   static getStubConfig(hass) {
@@ -116,6 +143,7 @@ export class IrrigationZoneCard extends HTMLElement {
       ${!config.bucket_entity ? etHTML : ''}
       <div class="stats"><button class="stat" data-entity="${escape(config.entity)}">${icon('mdi:timer-outline')}<div><div class="stat-value">${durationHTML}</div><div class="label">${escape(t.duration)}</div></div></button>
       ${config.water_used_entity ? `<button class="stat" data-entity="${escape(config.water_used_entity)}">${icon('mdi:water-outline')}<div><div class="stat-value">${escape(this._state(config.water_used_entity))}</div><div class="label">${escape(t.used)}</div></div></button>` : ''}</div>
+      ${this._rulesHTML(config,lang)}
       ${config.valve_entity ? `<div class="control">${icon(m.active ? 'mdi:pipe-valve' : 'mdi:valve-closed')}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} · ${escape(valveState)}</div><div class="control-state">${escape(t.manual)}</div></div>${config.show_control ? `<button id="control" class="${close ? 'close' : ''}" ${!m.action || this._pending ? 'disabled' : ''}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ''}</div>` : ''}
       ${config._discoveryIssue ? `<div class="notice" role="status">${escape(t[config._discoveryIssue])}</div>` : ''}
       ${config._autoMissing?.length ? `<div class="notice">${escape(t.autoMissing)}: ${config._autoMissing.map(escape).join(', ')}</div>` : ''}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-10-24
+
+- Neuer kompakter Bereich „Bewässerungsregeln“ für automatisch ausgewählte Zonen: Defizitschwelle, Mindestabstand mit Herkunft Zone/Global, Bodenfeuchte-Sperre und Laufzeitlimit.
+- Von Smart Irrigation gemeldete zonenspezifische Sperren und Hinweise auf zentrale Schutzprüfungen; fehlende Schutzvorschau bleibt sichtbar unbekannt.
+- Geteilte Systemabfragen mit der Übersichtskarte, Aktualisierung bei Konfigurationsänderungen und minütlich für die Schutzvorschau.
+- Optional `show_rules: false`, auch im visuellen Editor. Deutsch/Englisch, mobile Darstellung und helle/dunkle Themes.
+- 24 Logiktests und 23 Browserprüfungen. Keine Änderungen an Bewässerungseinstellungen oder Automationen.
+
 ## 0.4.0 — 2026-10-24
 
 - Angewandte ET als kompakte, separat anklickbare Kennzahl bei der Wasserbilanz; Vorzeichen und Sensoreinheit bleiben erhalten.

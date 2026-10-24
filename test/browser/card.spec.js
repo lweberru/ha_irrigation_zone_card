@@ -92,9 +92,9 @@ async function zoneFixture(page) {
     });
     hass.connection={
       subscribeEvents:async cb=>{window.discoveryCallbacks.registry=cb;return ()=>window.discoveryUnsubs++;},
-      subscribeMessage:async cb=>{window.discoveryCallbacks.zones=cb;return ()=>window.discoveryUnsubs++;},
+      subscribeMessage:async (cb,message)=>{window.discoveryCallbacks[message.type === 'smart_irrigation_config_updated' && !window.discoveryCallbacks.system ? 'system' : 'zones']=cb;return ()=>window.discoveryUnsubs++;},
     };
-    hass.callWS=async message=>{window.discoveryReads.push(message);return message.type==='smart_irrigation/zones' ? window.zoneData : window.zoneRegistry;};
+    hass.callWS=async message=>{window.discoveryReads.push(message);return message.type==='smart_irrigation/zones' ? window.zoneData : message.type==='config/entity_registry/list' ? window.zoneRegistry : message.type==='smart_irrigation/config' ? {stored_units:'metric',days_between_irrigation:1} : {skip_preview:{checks:[]}};};
     window.zoneHass=hass;
     const card=document.querySelector('irrigation-zone-card'); card.setConfig({zone:0}); card.hass=hass;
   });
@@ -150,11 +150,11 @@ test('zone dropdown shares discovery, resets overrides on change and persists on
   await page.evaluate(()=>document.querySelector('#test-editor').shadowRoot.querySelector('#main').dispatchEvent(new CustomEvent('value-changed',{detail:{value:{zone:'0'}}})));
   const config=await page.evaluate(()=>window.editorConfig);
   expect(config.zone).toBe('0'); expect(config.entity).toBeUndefined(); expect(config.moisture_entity).toBeUndefined(); expect(config.name).toBeUndefined();expect(config.grid_options).toEqual({columns:12});
-  expect(await page.evaluate(()=>window.discoveryReads.length)).toBe(2);
+  expect(await page.evaluate(()=>window.discoveryReads.length)).toBe(4);
   await page.evaluate(()=>document.querySelector('#test-editor').remove());
   expect(await page.evaluate(()=>window.discoveryUnsubs)).toBe(0);
   await page.locator('irrigation-zone-card').first().evaluate(card=>card.remove());
-  await expect.poll(()=>page.evaluate(()=>window.discoveryUnsubs)).toBe(2);
+  await expect.poll(()=>page.evaluate(()=>window.discoveryUnsubs)).toBe(3);
 });
 test('registry and zone edits refresh discovery, missing zones and API errors are visible',async({page})=>{
   await zoneFixture(page);
@@ -170,4 +170,35 @@ test('registry and zone edits refresh discovery, missing zones and API errors ar
   await expect(card.locator('#control')).toHaveCount(0);
   await page.evaluate(async()=>{window.zoneHass.callWS=async()=>{throw new Error('offline');};await window.discoveryCallbacks.registry();});
   await expect(card.locator('.notice')).toContainText('Automatische Zuordnung nicht verfügbar');
+});
+
+test('rules show zone values, inherited intervals, backend holds and update after configuration edits',async({page})=>{
+  await zoneFixture(page);
+  await page.evaluate(async()=>{
+    window.zoneData[0]={...window.zoneData[0],name:'Beet Westen',irrigation_threshold:10,days_between_irrigation:3,soil_moisture_threshold:50,maximum_duration:3600};
+    const previous=window.zoneHass.callWS;
+    window.zoneHass.callWS=async message=>message.type === 'smart_irrigation/info' ? {skip_preview:{checks:[{id:'soil_moisture',enabled:true,available:true,zones:[{zone_id:0,held:true}]},{id:'freeze',enabled:true,available:true,skip:true}]}} : previous(message);
+    await window.discoveryCallbacks.zones(); await window.discoveryCallbacks.system();
+  });
+  const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('.rule-value')).toHaveText(['10 mm','3 Tage','ab 50 %','60 min']);
+  await expect(card.locator('.rule-source')).toHaveText('Zone');
+  await expect(card.locator('.rule-holds')).toContainText('Bodenfeuchte hält die Zone zurück');
+  await expect(card.locator('.rule-holds')).toContainText('Zentrale Schutzprüfung');
+  await page.setViewportSize({width:320,height:1500});
+  expect(await card.evaluate(card=>card.shadowRoot.querySelector('ha-card').scrollWidth<=card.clientWidth)).toBe(true);
+  await card.screenshot({path:'test-results/rules-mobile.png'});
+  await page.setViewportSize({width:1280,height:1000});
+  await card.screenshot({path:'test-results/rules-light.png'});
+  await page.evaluate(()=>{document.body.classList.add('dark');const card=document.querySelector('irrigation-zone-card');card.hass={...card._hass,themes:{darkMode:true}};});
+  await card.screenshot({path:'test-results/rules-dark.png'});
+  await page.evaluate(async()=>{window.zoneData[0].days_between_irrigation=null;await window.discoveryCallbacks.zones();});
+  await expect(card.locator('.rule-value').nth(1)).toHaveText('1 Tag');
+  await expect(card.locator('.rule-source')).toHaveText('Global');
+  await page.evaluate(async()=>{window.zoneHass.callWS=async()=>{throw new Error('offline');};await window.discoveryCallbacks.system();});
+  await expect(card.locator('.rules')).toContainText('Aktuelle Schutzprüfung nicht verfügbar');
+  await expect(card.locator('.rule-holds')).toHaveCount(0);
+  await page.evaluate(()=>document.querySelector('irrigation-zone-card').setConfig({zone:0,show_rules:false}));
+  await expect(card.locator('.rules')).toHaveCount(0);
+  expect(await page.evaluate(()=>window.discoveryUnsubs)).toBe(1);
 });

@@ -34,12 +34,12 @@ export function validateConfig(config) {
   }
   if (config.bucket_min !== undefined && config.bucket_min >= 0) throw new Error('bucket_min must be below zero.');
   if (config.bucket_max !== undefined && config.bucket_max <= 0) throw new Error('bucket_max must be above zero.');
-  for (const key of ['show_control', 'confirm_open']) {
+  for (const key of ['show_control', 'confirm_open', 'show_rules']) {
     if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
   }
   if (config.language !== undefined && !['auto', 'de', 'en'].includes(config.language)) throw new Error('language must be auto, de or en.');
   for (const key of ['name', 'icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
-  return { show_control: true, confirm_open: true, ...config };
+  return { show_control: true, confirm_open: true, show_rules:true, ...config };
 }
 
 export function valveAction(entityId, state, features = 3) {
