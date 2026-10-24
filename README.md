@@ -19,7 +19,37 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.1.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.2.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+
+## Einfach einrichten: Zone auswählen
+
+Im visuellen Karteneditor unter **Smart-Irrigation-Zone** die gewünschte Zone auswählen. Die Karte übernimmt automatisch:
+
+- Zonenname, berechnete Dauer, Bewässerungsbedarf, Live-Wasserbilanz und Wasserverbrauch.
+- Den in Smart Irrigation hinterlegten Bodenfeuchtesensor (`soil_moisture_sensor`).
+- Das verknüpfte Ventil (`linked_entity`), sofern es ein `switch` oder `valve` ist.
+
+Die YAML-Konfiguration benötigt nur die interne Zonen-ID (auch `0` ist gültig):
+
+```yaml
+type: custom:irrigation-zone-card
+zone: 0
+```
+
+Der Editor zeigt Namen und IDs zur Auswahl an. `zone` ist **keine Home-Assistant-Ortszone** und kein Zonenname. Die Karte liest die Smart-Irrigation-Zonen per `smart_irrigation/zones` und findet deren Sensoren über die stabilen `unique_id`-Kennungen im HA-Entity-Registry. Umbenannte Entity-IDs werden dadurch weiterhin zugeordnet; Namen oder Entity-Präfixe werden nicht geraten. Voraussetzung ist eine Smart-Irrigation-Version mit diesem Zonen-Endpunkt und den Kennungen `smart_irrigation_<id>_<Rolle>`, etwa die Version v2026.10.8, mit der die Funktion geprüft wurde.
+
+Unter **Sensoren überschreiben (optional)** lassen sich einzelne Zuordnungen anpassen. Explizit eingetragene Entitäten haben Vorrang; für andere Felder bleibt die automatische Zuordnung aktiv. Ist kein Bodenfeuchtesensor oder Ventil in Smart Irrigation hinterlegt, entfällt dessen Anzeige bis zur manuellen Zuordnung. Mehrdeutige, deaktivierte oder nicht gefundene Berechnungssensoren erhalten einen Hinweis statt einer geratenen Zuordnung. API- oder Verbindungsfehler erscheinen ebenfalls in der Karte.
+
+```yaml
+type: custom:irrigation-zone-card
+zone: 0
+moisture_entity: sensor.mein_bodenfeuchtesensor # optionale Überschreibung
+show_control: false # optional nur den Ventilzustand anzeigen
+```
+
+Ist dasselbe Ventil mehreren Zonen zugeordnet, kennzeichnet die Karte es als **Gemeinsames Ventil**. Ein manueller Schaltbefehl betrifft dieses gemeinsame Ventil. Die Auswahl einer Zone schafft keine unabhängige hydraulische Steuerung.
+
+Ein Zonenwechsel im Editor löscht bisherige Sensorüberschreibungen und den eigenen Namen, damit die neue Zone ihre Zuordnungen erhält. Danach können neue Überschreibungen gesetzt werden. Manuelle Konfiguration ohne `zone` bleibt vollständig unterstützt; unter **Manuell konfigurieren** sind die Einzelfelder aufgeklappt. Änderungen an den Smart-Irrigation-Zonen und im Entity-Registry werden bei verbundenem Dashboard nachgeladen. Mehrere Karten teilen sich die Lesezugriffe und geben ihre Abonnements beim Entfernen frei. Falls eine ältere Integration Änderungsabonnements nicht unterstützt, die Ansicht nach einer Änderung neu laden.
 
 ## Beispiel: Vorgarten
 
@@ -41,17 +71,18 @@ show_control: true
 confirm_open: true
 ```
 
-Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler sucht als Vorschlag einen Smart-Irrigation-Dauersensor und vorhandene Begleitsensoren. Bodenfeuchte und Ventil werden manuell zugeordnet.
+Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlägt bei verfügbarer Zonen-ID die automatische Zonen-Konfiguration vor, andernfalls eine manuelle Konfiguration. Bestehende Karten aus v0.1.0 funktionieren unverändert weiter. Für eine Umstellung im Editor die Zone auswählen oder in YAML die bisherigen Einzelzuordnungen durch `zone` ersetzen.
 
 ## Optionen
 
 | Feld | Standard | Bedeutung |
 | --- | --- | --- |
-| `entity` | erforderlich | Smart-Irrigation-Dauersensor |
-| `name` | Anzeigename des Sensors | Name der Zone |
+| `zone` | optional | Smart-Irrigation-Zonen-ID; automatische Zuordnung aktivieren |
+| `entity` | ohne `zone` erforderlich | Smart-Irrigation-Dauersensor; mit `zone` optionale Überschreibung |
+| `name` | Zonenname bzw. Anzeigename des Sensors | Name der Zone |
 | `icon` | `mdi:sprinkler-variant` | Symbol im Kopf |
 | `irrigation_needed_entity` | optional | `binary_sensor`: `on` = Bedarf, `off` = kein Bedarf |
-| `bucket_entity` | optional | Live-Wasserbilanz-Sensor; bei Weglassen entfällt die Anzeige |
+| `bucket_entity` | optional | Live-Wasserbilanz-Sensor; mit `zone` automatisch zugeordnet |
 | `moisture_entity` | optional | Bodenfeuchte; Ringfüllung nur bei Einheit `%` |
 | `water_used_entity` | optional | Verbrauchssensor mit dessen Einheit und Bezugszeitraum |
 | `valve_entity` | optional | `switch.*` oder `valve.*` |
@@ -98,6 +129,8 @@ npm run check
 
 Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Darstellung, Bestätigungsdialog, Serviceaufrufe, Fehler, HTML-Escaping, Detaildialog-Ereignis, Editor-Konfigurationsereignis und mobile Breite im Browser. Screenshots unter `test-results/`. Die Browserprüfungen verwenden simulierte HA-Objekte; eine Prüfung im echten HA-Frontend bleibt für eine Installation erforderlich.
 
+Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
+
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 
 ## Referenzen
@@ -106,5 +139,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 - [Home Assistant: Editor und Kartenwähler](https://contributors.home-assistant.io/frontend/custom-ui/card-editor/)
 - [Home Assistant: Valve-Zustände und Aktionen](https://www.home-assistant.io/integrations/valve/)
 - [HACS: Dashboard-Repository](https://www.hacs.xyz/docs/publish/plugin/)
+- [Smart Irrigation: Zonen-WebSocket](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/websockets.py)
+- [Smart Irrigation: stabile Sensor-Kennungen](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/sensor.py)
 
 MIT-Lizenz.

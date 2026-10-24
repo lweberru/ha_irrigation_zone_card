@@ -1,0 +1,7 @@
+type: custom:irrigation-zone-card
+# Interne Smart-Irrigation-Zonen-ID; im visuellen Editor per Namen auswählen.
+zone: 0
+# Bei Bedarf automatisch zugeordnete Sensoren einzeln überschreiben:
+# moisture_entity: sensor.meine_bodenfeuchte
+# valve_entity: valve.mein_zonenventil
+# show_control: false

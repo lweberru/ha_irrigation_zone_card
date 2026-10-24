@@ -1,4 +1,4 @@
-/* Irrigation Zone Card v0.1.0 | MIT License */
+/* Irrigation Zone Card v0.2.0 | MIT License */
 
 // src/styles.js
 var styles = `
@@ -77,8 +77,12 @@ function numeric(value) {
 }
 var clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function validateConfig(config) {
-  if (!config || typeof config.entity !== "string" || !/^sensor\.[a-z0-9_]+$/.test(config.entity)) {
-    throw new Error("entity must be a sensor entity ID (Smart Irrigation duration).");
+  const zone = config?.zone !== void 0 && config.zone !== "";
+  if (zone && !(typeof config.zone === "number" && Number.isSafeInteger(config.zone) && config.zone >= 0 || typeof config.zone === "string" && /^(0|[1-9]\d*)$/.test(config.zone) && Number.isSafeInteger(Number(config.zone)))) {
+    throw new Error("zone must be a non-negative Smart Irrigation zone ID.");
+  }
+  if ((!zone || config.entity) && (typeof config?.entity !== "string" || !/^sensor\.[a-z0-9_]+$/.test(config.entity))) {
+    throw new Error("Select a Smart Irrigation zone or define a duration sensor entity.");
   }
   for (const key of entityKeys.slice(1)) {
     if (config[key] !== void 0 && config[key] !== "" && (typeof config[key] !== "string" || !/^[a-z_]+\.[a-z0-9_]+$/.test(config[key]))) {
@@ -153,11 +157,96 @@ function durationParts(state) {
   return { value: Math.floor(seconds / 3600), unit: "h", remainder: Math.floor(seconds % 3600 / 60), remainderUnit: "min" };
 }
 
+// src/discovery.js
+var hasZone = (config) => config?.zone !== void 0 && config.zone !== "";
+var roles = { entity: "duration", irrigation_needed_entity: "irrigation_needed", bucket_entity: "live_bucket", water_used_entity: "water_used" };
+function resolveZone(config, discovery) {
+  if (!hasZone(config)) return config;
+  const zone = discovery?.zones?.find((zone2) => String(zone2.id) === String(config.zone));
+  const result = { ...config };
+  if (!zone) return { ...result, _discoveryIssue: discovery?.error ? "discoveryFailed" : discovery ? "zoneMissing" : "loading" };
+  result.name = config.name || zone.name;
+  const registry = discovery.registry || [];
+  for (const [key, role] of Object.entries(roles)) {
+    if (config[key]) continue;
+    const candidates = registry.filter((entry) => entry.platform === "smart_irrigation" && !entry.disabled_by && entry.unique_id === `smart_irrigation_${zone.id}_${role}` && entry.entity_id?.startsWith(key === "irrigation_needed_entity" ? "binary_sensor." : "sensor."));
+    if (candidates.length === 1) result[key] = candidates[0].entity_id;
+  }
+  if (!config.moisture_entity && /^sensor\.[a-z0-9_]+$/.test(zone.soil_moisture_sensor || "")) result.moisture_entity = zone.soil_moisture_sensor;
+  if (!config.valve_entity && /^(switch|valve)\.[a-z0-9_]+$/.test(zone.linked_entity || "")) result.valve_entity = zone.linked_entity;
+  const users = discovery.zones.filter((item) => item.linked_entity === result.valve_entity);
+  result._sharedValve = result.valve_entity && users.length > 1 ? users.length : 0;
+  result._autoMissing = Object.keys(roles).filter((key) => !result[key]);
+  if (discovery.error) result._discoveryIssue = "discoveryFailed";
+  return result;
+}
+var readers = /* @__PURE__ */ new WeakMap();
+function watchDiscovery(hass, callback) {
+  const key = hass.connection || hass;
+  let reader = readers.get(key);
+  if (!reader) {
+    reader = { listeners: /* @__PURE__ */ new Set(), snapshot: null, pending: false, again: false, cleanups: [] };
+    readers.set(key, reader);
+  }
+  reader.hass = hass;
+  reader.listeners.add(callback);
+  if (reader.snapshot) callback(reader.snapshot);
+  const refresh = async () => {
+    if (reader.pending) {
+      reader.again = true;
+      return;
+    }
+    reader.pending = true;
+    const results = await Promise.allSettled([
+      Promise.resolve().then(() => reader.hass.callWS({ type: "smart_irrigation/zones" })),
+      Promise.resolve().then(() => reader.hass.callWS({ type: "config/entity_registry/list" }))
+    ]);
+    reader.snapshot = {
+      zones: results[0].status === "fulfilled" && Array.isArray(results[0].value) ? results[0].value : [],
+      registry: results[1].status === "fulfilled" && Array.isArray(results[1].value) ? results[1].value : [],
+      error: results.some((result) => result.status === "rejected" || !Array.isArray(result.value))
+    };
+    reader.pending = false;
+    for (const listener of reader.listeners) listener(reader.snapshot);
+    if (reader.again && reader.listeners.size) {
+      reader.again = false;
+      void refresh();
+    }
+  };
+  if (reader.listeners.size === 1) {
+    const connection = hass.connection;
+    const subscribe = (promise) => Promise.resolve(promise).then((unsubscribe) => {
+      if (reader.listeners.size) reader.cleanups.push(unsubscribe);
+      else unsubscribe();
+    }).catch(() => {
+    });
+    if (connection?.subscribeEvents) subscribe(connection.subscribeEvents(refresh, "entity_registry_updated"));
+    if (connection?.subscribeMessage) subscribe(connection.subscribeMessage(refresh, { type: "smart_irrigation_config_updated" }));
+    if (connection?.addEventListener) {
+      connection.addEventListener("ready", refresh);
+      reader.cleanups.push(() => connection.removeEventListener("ready", refresh));
+    }
+    void refresh();
+  }
+  return () => {
+    reader.listeners.delete(callback);
+    if (!reader.listeners.size) {
+      reader.cleanups.splice(0).forEach((cleanup) => cleanup());
+      readers.delete(key);
+    }
+  };
+}
+function sameEntities(a, b) {
+  return entityKeys.every((key) => a?.[key] === b?.[key]);
+}
+
 // src/editor.js
 var labels = {
   de: { entity: "Berechnete Dauer (Smart Irrigation)", name: "Zonenname", icon: "Symbol", irrigation_needed_entity: "Bew\xE4sserung n\xF6tig", bucket_entity: "Wasserbilanz (live)", water_used_entity: "Wasserverbrauch", moisture_entity: "Bodenfeuchte", valve_entity: "Ventil (optional)", bucket_min: "Wasserbilanz: Skalenminimum (< 0)", bucket_max: "Wasserbilanz: Skalenmaximum (> 0)", show_control: "Manuelle Ventilsteuerung anzeigen", confirm_open: "Vor manuellem \xD6ffnen best\xE4tigen", language: "Sprache" },
   en: { entity: "Calculated duration (Smart Irrigation)", name: "Zone name", icon: "Icon", irrigation_needed_entity: "Irrigation needed", bucket_entity: "Water balance (live)", water_used_entity: "Water used", moisture_entity: "Soil moisture", valve_entity: "Valve (optional)", bucket_min: "Water balance: scale minimum (< 0)", bucket_max: "Water balance: scale maximum (> 0)", show_control: "Show manual valve control", confirm_open: "Confirm before opening manually", language: "Language" }
 };
+Object.assign(labels.de, { zone: "Smart-Irrigation-Zone", overrides: "Sensoren \xFCberschreiben (optional)" });
+Object.assign(labels.en, { zone: "Smart Irrigation zone", overrides: "Override sensors (optional)" });
 var IrrigationZoneEditor = class extends HTMLElement {
   constructor() {
     super();
@@ -167,38 +256,80 @@ var IrrigationZoneEditor = class extends HTMLElement {
     this._config = { ...config };
     this._render();
   }
+  connectedCallback() {
+    this._watch();
+    this._render();
+  }
+  disconnectedCallback() {
+    this._unwatch?.();
+    this._unwatch = null;
+    this._connection = null;
+  }
   set hass(hass) {
     this._hass = hass;
+    this._watch();
     this._render();
+  }
+  _watch() {
+    if (!this.isConnected || !this._hass?.callWS) return;
+    const connection = this._hass.connection || this._hass;
+    if (this._connection === connection) return;
+    this._unwatch?.();
+    this._discovery = null;
+    this._connection = connection;
+    this._unwatch = watchDiscovery(this._hass, (snapshot) => {
+      this._discovery = snapshot;
+      this._render();
+    });
   }
   _render() {
     if (!this._config || !this._hass) return;
     if (!this._form) {
-      this.shadowRoot.innerHTML = "<ha-form></ha-form>";
-      this._form = this.shadowRoot.firstElementChild;
-      this._form.addEventListener("value-changed", (event) => {
+      this.shadowRoot.innerHTML = '<style>.notice{font-size:12px;color:var(--secondary-text-color);margin:12px 0}summary{cursor:pointer;padding:16px 0}</style><ha-form id="main"></ha-form><div class="notice" role="status"></div><details><summary></summary><ha-form id="overrides"></ha-form></details>';
+      this._form = this.shadowRoot.querySelector("#main");
+      this._overrides = this.shadowRoot.querySelector("#overrides");
+      const onChange = (event) => {
         event.stopPropagation();
         const config = { ...this._config, ...event.detail.value };
+        if (String(config.zone ?? "") !== String(this._config.zone ?? "")) {
+          for (const key of entityKeys) delete config[key];
+          delete config.name;
+        }
         for (const key of Object.keys(config)) if (config[key] === "" || config[key] === null || config[key] === void 0) delete config[key];
         this._config = config;
+        this._render();
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
-      });
-      this._form.schema = [
-        { name: "entity", required: true, selector: { entity: { domain: "sensor" } } },
-        { name: "name", selector: { text: {} } },
-        { name: "icon", selector: { icon: {} } },
-        ...["irrigation_needed_entity", "bucket_entity", "water_used_entity", "moisture_entity", "valve_entity"].map((name) => ({ name, selector: { entity: { domain: name === "valve_entity" ? ["switch", "valve"] : name === "irrigation_needed_entity" ? "binary_sensor" : "sensor" } } })),
-        { name: "bucket_min", selector: { number: { mode: "box", min: -1e4, max: -0.01, step: "any" } } },
-        { name: "bucket_max", selector: { number: { mode: "box", min: 0.01, max: 1e4, step: "any" } } },
-        { name: "show_control", selector: { boolean: {} } },
-        { name: "confirm_open", selector: { boolean: {} } },
-        { name: "language", selector: { select: { options: [{ value: "auto", label: "Auto" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } }
-      ];
+      };
+      this._form.addEventListener("value-changed", onChange);
+      this._overrides.addEventListener("value-changed", onChange);
     }
     const lang = this._config.language && this._config.language !== "auto" ? this._config.language : this._hass.language;
-    this._form.hass = this._hass;
-    this._form.data = { show_control: true, confirm_open: true, language: "auto", ...this._config };
-    this._form.computeLabel = (schema) => labels[lang?.startsWith("de") ? "de" : "en"][schema.name] || schema.name;
+    const de = lang?.startsWith("de");
+    const label = (schema) => labels[de ? "de" : "en"][schema.name] || schema.name;
+    const zones = this._discovery?.zones || [];
+    const options = [{ value: "", label: de ? "Manuell konfigurieren" : "Configure manually" }, ...zones.map((zone) => ({ value: String(zone.id), label: `${zone.name} (${zone.id})` }))];
+    if (hasZone(this._config) && !zones.some((zone) => String(zone.id) === String(this._config.zone))) options.push({ value: String(this._config.zone), label: `Zone ${this._config.zone}` });
+    this._form.schema = [
+      { name: "zone", selector: { select: { options } } },
+      { name: "name", selector: { text: {} } },
+      { name: "icon", selector: { icon: {} } },
+      { name: "show_control", selector: { boolean: {} } },
+      { name: "confirm_open", selector: { boolean: {} } },
+      { name: "language", selector: { select: { options: [{ value: "auto", label: "Auto" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } }
+    ];
+    this._overrides.schema = [
+      ...entityKeys.map((name) => ({ name, required: name === "entity" && !hasZone(this._config), selector: { entity: { domain: name === "valve_entity" ? ["switch", "valve"] : name === "irrigation_needed_entity" ? "binary_sensor" : "sensor" } } })),
+      { name: "bucket_min", selector: { number: { mode: "box", min: -1e4, max: -0.01, step: "any" } } },
+      { name: "bucket_max", selector: { number: { mode: "box", min: 0.01, max: 1e4, step: "any" } } }
+    ];
+    for (const form of [this._form, this._overrides]) {
+      form.hass = this._hass;
+      form.data = { show_control: true, confirm_open: true, language: "auto", ...this._config, zone: hasZone(this._config) ? String(this._config.zone) : "" };
+      form.computeLabel = label;
+    }
+    this.shadowRoot.querySelector("summary").textContent = label({ name: "overrides" });
+    if (!hasZone(this._config)) this.shadowRoot.querySelector("details").open = true;
+    this.shadowRoot.querySelector(".notice").textContent = this._discovery?.error ? de ? "Automatische Zuordnung nicht verf\xFCgbar. Entit\xE4ten k\xF6nnen manuell eingetragen werden." : "Automatic discovery unavailable. You can configure entities manually." : de ? "Die Zone ordnet Sensoren, Bodenfeuchte und verkn\xFCpftes Ventil automatisch zu. Ein Zonenwechsel setzt manuelle Sensorzuordnungen und den Namen zur\xFCck." : "The zone automatically assigns sensors, soil moisture and the linked valve. Changing zones clears sensor overrides and the name.";
   }
 };
 if (!customElements.get("irrigation-zone-card-editor")) customElements.define("irrigation-zone-card-editor", IrrigationZoneEditor);
@@ -208,6 +339,8 @@ var translations = {
   de: { zone: "Bew\xE4sserungszone", watering: "Ventil aktiv", needed: "Bew\xE4sserung n\xF6tig", balanced: "Kein Wasserbedarf", unknown: "Wasserbedarf unbekannt", moisture: "Bodenfeuchte", balance: "Wasserbilanz \xB7 live", reserve: "Wasservorrat", deficit: "Wasserdefizit", neutral: "Ausgeglichen", duration: "Berechnete Dauer", used: "Wasserverbrauch", valve: "Zonenventil", open: "\xD6ffnen", close: "Schlie\xDFen", opening: "\xD6ffnet \u2026", closing: "Schlie\xDFt \u2026", on: "Ge\xF6ffnet", off: "Geschlossen", unavailable: "Nicht verf\xFCgbar", pending: "Wird gesendet \u2026", confirm: "Ventil manuell \xF6ffnen? Es bleibt ge\xF6ffnet, bis es geschlossen wird. Die berechnete Dauer startet keinen Timer.", manual: "Manuell \xB7 ohne Abschalttimer", failed: "Ventil konnte nicht geschaltet werden.", missing: "Nicht verf\xFCgbar", details: "Zonendetails \xF6ffnen", noData: "Die konfigurierten Sensoren liefern noch keine Werte." },
   en: { zone: "Irrigation zone", watering: "Valve active", needed: "Irrigation needed", balanced: "No irrigation needed", unknown: "Water demand unknown", moisture: "Soil moisture", balance: "Water balance \xB7 live", reserve: "Water reserve", deficit: "Water deficit", neutral: "Balanced", duration: "Calculated duration", used: "Water used", valve: "Zone valve", open: "Open", close: "Close", opening: "Opening \u2026", closing: "Closing \u2026", on: "Open", off: "Closed", unavailable: "Unavailable", pending: "Sending \u2026", confirm: "Open valve manually? It stays open until closed. The calculated duration does not start a timer.", manual: "Manual \xB7 no shutoff timer", failed: "Could not control the valve.", missing: "Unavailable", details: "Open zone details", noData: "The configured sensors have no readings yet." }
 };
+Object.assign(translations.de, { sharedValve: "Gemeinsames Ventil", loading: "Zone wird geladen \u2026", zoneMissing: "Die ausgew\xE4hlte Smart-Irrigation-Zone wurde nicht gefunden.", discoveryFailed: "Automatische Zuordnung nicht verf\xFCgbar. Verbindung und Smart-Irrigation-Integration pr\xFCfen oder Entit\xE4ten manuell eintragen.", autoMissing: "Sensoren nicht automatisch gefunden (optional manuell zuweisen)" });
+Object.assign(translations.en, { sharedValve: "Shared valve", loading: "Loading zone \u2026", zoneMissing: "The selected Smart Irrigation zone was not found.", discoveryFailed: "Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.", autoMissing: "Sensors not discovered (assign manually if needed)" });
 var escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 var icon = (value) => `<ha-icon icon="${escape(value)}"></ha-icon>`;
 var IrrigationZoneCard = class extends HTMLElement {
@@ -216,15 +349,50 @@ var IrrigationZoneCard = class extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._pending = false;
   }
+  connectedCallback() {
+    this._watchDiscovery();
+  }
+  disconnectedCallback() {
+    this._unwatch?.();
+    this._unwatch = null;
+    this._connection = null;
+  }
   setConfig(config) {
     this._config = validateConfig(config);
+    this._watchDiscovery();
     this._render();
+  }
+  _watchDiscovery() {
+    const connection = this._hass?.connection || this._hass;
+    if (!this.isConnected || !hasZone(this._config) || !this._hass?.callWS) {
+      if (!hasZone(this._config)) {
+        this._unwatch?.();
+        this._unwatch = null;
+        this._connection = null;
+        this._discovery = null;
+      }
+      return;
+    }
+    if (this._connection === connection) return;
+    this._unwatch?.();
+    this._discovery = null;
+    this._connection = connection;
+    this._unwatch = watchDiscovery(this._hass, (snapshot) => {
+      this._discovery = snapshot;
+      this._render();
+    });
+  }
+  _resolved() {
+    return resolveZone(this._config, this._discovery);
   }
   set hass(value) {
     const old = this._hass;
+    const previous = this._config ? this._resolved() : null;
     this._hass = value;
     if (!this._config) return;
-    if (!old || old.language !== value.language || old.locale !== value.locale || old.themes !== value.themes || entityKeys.some((key) => old.states[this._config[key]] !== value.states[this._config[key]])) this._render();
+    this._watchDiscovery();
+    const resolved = this._resolved();
+    if (!old || old.language !== value.language || old.locale !== value.locale || old.themes !== value.themes || !sameEntities(previous, resolved) || entityKeys.some((key) => old.states[resolved[key]] !== value.states[resolved[key]])) this._render();
   }
   getCardSize() {
     return this._config?.valve_entity ? 9 : 8;
@@ -237,6 +405,8 @@ var IrrigationZoneCard = class extends HTMLElement {
   }
   static getStubConfig(hass) {
     const entity = Object.keys(hass?.states || {}).find((id) => id.startsWith("sensor.smart_irrigation_") && hass.states[id].attributes?.device_class === "duration");
+    const zone = hass?.states[entity]?.attributes?.id;
+    if (Number.isSafeInteger(zone) && zone >= 0) return { zone };
     if (!entity) return { entity: "sensor.smart_irrigation_zone" };
     const result = { entity };
     for (const [key, id] of Object.entries({ irrigation_needed_entity: entity.replace("sensor.", "binary_sensor.") + "_irrigation_needed", bucket_entity: entity + "_live_bucket", water_used_entity: entity + "_water_used" })) {
@@ -258,15 +428,16 @@ var IrrigationZoneCard = class extends HTMLElement {
   }
   async _control() {
     if (this._pending) return;
-    const model = zoneModel(this._config, this._hass.states);
+    const config = this._resolved();
+    const model = zoneModel(config, this._hass.states);
     const action = model.action;
     if (!action) return;
-    if (["turn_on", "open_valve"].includes(action.service) && this._config.confirm_open && !window.confirm(this._t.confirm)) return;
+    if (["turn_on", "open_valve"].includes(action.service) && config.confirm_open && !window.confirm(`${config._sharedValve ? this._t.sharedValve + " " : ""}${this._t.confirm}`)) return;
     this._pending = true;
     this._error = "";
     this._render();
     try {
-      await this._hass.callService(action.domain, action.service, { entity_id: this._config.valve_entity });
+      await this._hass.callService(action.domain, action.service, { entity_id: config.valve_entity });
     } catch (error) {
       this._error = `${this._t.failed} ${error?.message || ""}`;
     } finally {
@@ -279,7 +450,7 @@ var IrrigationZoneCard = class extends HTMLElement {
     this.toggleAttribute("dark", !!this._hass.themes?.darkMode);
     const focused = this.shadowRoot.activeElement;
     const focusTarget = focused?.id ? { id: focused.id } : focused?.dataset.entity ? { entity: focused.dataset.entity } : focused?.classList.contains("more") ? { more: true } : null;
-    const config = this._config;
+    const config = this._resolved();
     const lang = config.language === "auto" || !config.language ? this._hass.language : config.language;
     const t = this._t = translations[lang?.startsWith("de") ? "de" : "en"];
     const m = zoneModel(config, this._hass.states);
@@ -306,7 +477,9 @@ var IrrigationZoneCard = class extends HTMLElement {
       </div>` : '<div class="empty-overview"></div>'}
       <div class="stats"><button class="stat" data-entity="${escape(config.entity)}">${icon("mdi:timer-outline")}<div><div class="stat-value">${durationHTML}</div><div class="label">${escape(t.duration)}</div></div></button>
       ${config.water_used_entity ? `<button class="stat" data-entity="${escape(config.water_used_entity)}">${icon("mdi:water-outline")}<div><div class="stat-value">${escape(this._state(config.water_used_entity))}</div><div class="label">${escape(t.used)}</div></div></button>` : ""}</div>
-      ${config.valve_entity ? `<div class="control">${icon(m.active ? "mdi:pipe-valve" : "mdi:valve-closed")}<div class="control-copy"><div class="control-title">${escape(t.valve)} \xB7 ${escape(valveState)}</div><div class="control-state">${escape(t.manual)}</div></div>${config.show_control ? `<button id="control" class="${close ? "close" : ""}" ${!m.action || this._pending ? "disabled" : ""}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ""}</div>` : ""}
+      ${config.valve_entity ? `<div class="control">${icon(m.active ? "mdi:pipe-valve" : "mdi:valve-closed")}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} \xB7 ${escape(valveState)}</div><div class="control-state">${escape(t.manual)}</div></div>${config.show_control ? `<button id="control" class="${close ? "close" : ""}" ${!m.action || this._pending ? "disabled" : ""}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ""}</div>` : ""}
+      ${config._discoveryIssue ? `<div class="notice" role="status">${escape(t[config._discoveryIssue])}</div>` : ""}
+      ${config._autoMissing?.length ? `<div class="notice">${escape(t.autoMissing)}: ${config._autoMissing.map(escape).join(", ")}</div>` : ""}
       ${missing.length ? `<div class="notice">${escape(t.missing)}: ${missing.map((key) => escape(config[key])).join(", ")}</div>` : ""}
       ${this._error ? `<div role="alert" class="notice error">${escape(this._error)}</div>` : ""}
     </div></ha-card>`;

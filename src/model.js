@@ -8,8 +8,13 @@ export function numeric(value) {
 export const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function validateConfig(config) {
-  if (!config || typeof config.entity !== 'string' || !/^sensor\.[a-z0-9_]+$/.test(config.entity)) {
-    throw new Error('entity must be a sensor entity ID (Smart Irrigation duration).');
+  const zone = config?.zone !== undefined && config.zone !== '';
+  if (zone && !((typeof config.zone === 'number' && Number.isSafeInteger(config.zone) && config.zone >= 0) ||
+    (typeof config.zone === 'string' && /^(0|[1-9]\d*)$/.test(config.zone) && Number.isSafeInteger(Number(config.zone))))) {
+    throw new Error('zone must be a non-negative Smart Irrigation zone ID.');
+  }
+  if ((!zone || config.entity) && (typeof config?.entity !== 'string' || !/^sensor\.[a-z0-9_]+$/.test(config.entity))) {
+    throw new Error('Select a Smart Irrigation zone or define a duration sensor entity.');
   }
   for (const key of entityKeys.slice(1)) {
     if (config[key] !== undefined && config[key] !== '' &&

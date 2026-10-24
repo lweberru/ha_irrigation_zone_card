@@ -71,3 +71,72 @@ test('visual editor preserves unrelated config and clears optional values',async
   });
   expect(result.name).toBe('Beet'); expect(result.moisture_entity).toBeUndefined(); expect(result.grid_options).toEqual({columns:12}); expect(result.show_control).toBe(false);
 });
+async function zoneFixture(page) {
+  await page.evaluate(()=>{
+    window.discoveryCallbacks={}; window.discoveryUnsubs=0; window.discoveryReads=[];
+    window.zoneData=[{id:0,name:'Automatische Zone',soil_moisture_sensor:window.demoConfig.moisture_entity,linked_entity:'valve.vorgarten'},{id:2,name:'Andere Zone',linked_entity:'valve.vorgarten'}];
+    const roles={entity:'duration',bucket_entity:'live_bucket',water_used_entity:'water_used',irrigation_needed_entity:'irrigation_needed'};
+    const hass=window.demoHass();
+    window.zoneRegistry=Object.entries(roles).map(([key,role])=>{
+      const old=window.demoConfig[key]; const entity_id=`${old.split('.')[0]}.renamed_${role}`;
+      hass.states[entity_id]=hass.states[old]; delete hass.states[old];
+      return {entity_id,platform:'smart_irrigation',unique_id:`smart_irrigation_0_${role}`};
+    });
+    hass.connection={
+      subscribeEvents:async cb=>{window.discoveryCallbacks.registry=cb;return ()=>window.discoveryUnsubs++;},
+      subscribeMessage:async cb=>{window.discoveryCallbacks.zones=cb;return ()=>window.discoveryUnsubs++;},
+    };
+    hass.callWS=async message=>{window.discoveryReads.push(message);return message.type==='smart_irrigation/zones' ? window.zoneData : window.zoneRegistry;};
+    window.zoneHass=hass;
+    const card=document.querySelector('irrigation-zone-card'); card.setConfig({zone:0}); card.hass=hass;
+  });
+}
+test('selecting just a zone resolves renamed sensors, linked moisture and a shared valve',async({page})=>{
+  await zoneFixture(page);
+  const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('h2')).toHaveText('Automatische Zone');
+  await expect(card.locator('.balance-value')).toHaveText('+3,5 mm');
+  await expect(card.locator('.ring-value')).toHaveText('100%');
+  await expect(card.locator('.control-title')).toContainText('Gemeinsames Ventil');
+  await page.evaluate(()=>{
+    const card=document.querySelector('irrigation-zone-card');
+    const hass={...window.zoneHass,states:{...window.zoneHass.states,'sensor.renamed_live_bucket':{state:'-6',attributes:{unit_of_measurement:'mm'}}}};
+    card.hass=hass;
+  });
+  await expect(card.locator('.balance-value')).toHaveText('-6 mm');
+  page.once('dialog',dialog=>dialog.accept());
+  await card.getByRole('button',{name:'Öffnen',exact:true}).click();
+  expect(await page.evaluate(()=>window.demoCalls.at(-1))).toEqual({domain:'valve',service:'open_valve',data:{entity_id:'valve.vorgarten'}});
+});
+test('zone dropdown shares discovery, resets overrides on change and persists only the selection',async({page})=>{
+  await zoneFixture(page);
+  await page.evaluate(()=>{
+    const editor=document.createElement('irrigation-zone-card-editor'); editor.id='test-editor';
+    editor.setConfig({...window.demoConfig,grid_options:{columns:12}}); editor.hass=window.zoneHass;document.body.append(editor);
+    editor.addEventListener('config-changed',event=>window.editorConfig=event.detail.config);
+  });
+  await expect.poll(()=>page.evaluate(()=>document.querySelector('#test-editor').shadowRoot.querySelector('#main').schema[0].selector.select.options.length)).toBe(3);
+  await page.evaluate(()=>document.querySelector('#test-editor').shadowRoot.querySelector('#main').dispatchEvent(new CustomEvent('value-changed',{detail:{value:{zone:'0'}}})));
+  const config=await page.evaluate(()=>window.editorConfig);
+  expect(config.zone).toBe('0'); expect(config.entity).toBeUndefined(); expect(config.moisture_entity).toBeUndefined(); expect(config.name).toBeUndefined();expect(config.grid_options).toEqual({columns:12});
+  expect(await page.evaluate(()=>window.discoveryReads.length)).toBe(2);
+  await page.evaluate(()=>document.querySelector('#test-editor').remove());
+  expect(await page.evaluate(()=>window.discoveryUnsubs)).toBe(0);
+  await page.locator('irrigation-zone-card').first().evaluate(card=>card.remove());
+  await expect.poll(()=>page.evaluate(()=>window.discoveryUnsubs)).toBe(2);
+});
+test('registry and zone edits refresh discovery, missing zones and API errors are visible',async({page})=>{
+  await zoneFixture(page);
+  const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('h2')).toHaveText('Automatische Zone');
+  await page.evaluate(async()=>{
+    window.zoneData=[{...window.zoneData[0],name:'Neuer Name'}];
+    await window.discoveryCallbacks.zones();
+  });
+  await expect(card.locator('h2')).toHaveText('Neuer Name');
+  await page.evaluate(()=>document.querySelector('irrigation-zone-card').setConfig({zone:99}));
+  await expect(card.locator('.notice')).toContainText('wurde nicht gefunden');
+  await expect(card.locator('#control')).toHaveCount(0);
+  await page.evaluate(async()=>{window.zoneHass.callWS=async()=>{throw new Error('offline');};await window.discoveryCallbacks.registry();});
+  await expect(card.locator('.notice')).toContainText('Automatische Zuordnung nicht verfügbar');
+});
