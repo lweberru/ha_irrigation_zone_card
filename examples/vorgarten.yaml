@@ -1,0 +1,14 @@
+type: custom:irrigation-zone-card
+name: Vorgarten
+entity: sensor.smart_irrigation_vorgarten
+irrigation_needed_entity: binary_sensor.smart_irrigation_vorgarten_irrigation_needed
+bucket_entity: sensor.smart_irrigation_vorgarten_live_bucket
+water_used_entity: sensor.smart_irrigation_vorgarten_water_used
+moisture_entity: sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit
+# Optional: tatsächliche Entität einsetzen, switch.* oder valve.*
+# valve_entity: valve.vorgarten
+# show_control: true
+# confirm_open: true
+grid_options:
+  columns: 12
+  rows: auto

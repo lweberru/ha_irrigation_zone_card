@@ -1,0 +1,14 @@
+# Changelog
+
+## 0.1.0 — 2026-10-24
+
+Erstes Release der Irrigation Zone Card für Home Assistant und HACS.
+
+- Bodenfeuchte als Ring und Live-Wasserbilanz mit Defizit-/Vorratsskala.
+- Berechnete Bewässerungsdauer und Wasserverbrauch mit Sensor-Einheiten.
+- Optionales Zonenventil als `switch` oder `valve`, mit Bestätigung vor manuellem Öffnen und Fehleranzeige.
+- Visueller Karteneditor, deutsche und englische Texte, helle und dunkle Themes sowie mobiles Layout.
+- Fertige JavaScript-Datei ohne externe Laufzeitabhängigkeiten, Vorgarten-Beispiel und interaktive lokale Vorschau.
+- Sieben Logiktests und sieben Browserprüfungen.
+
+Manuelle Ventilsteuerung startet keinen Abschalttimer. Das Release ist zur Installation als benutzerdefiniertes HACS-Dashboard-Repository vorgesehen.
