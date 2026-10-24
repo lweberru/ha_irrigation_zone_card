@@ -5,6 +5,8 @@ irrigation_needed_entity: binary_sensor.smart_irrigation_vorgarten_irrigation_ne
 bucket_entity: sensor.smart_irrigation_vorgarten_live_bucket
 water_used_entity: sensor.smart_irrigation_vorgarten_water_used
 moisture_entity: sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit
+et_entity: sensor.smart_irrigation_vorgarten_et_value
+problem_entity: binary_sensor.smart_irrigation_vorgarten_problem
 # Optional: tatsächliche Entität einsetzen, switch.* oder valve.*
 # valve_entity: valve.vorgarten
 # show_control: true

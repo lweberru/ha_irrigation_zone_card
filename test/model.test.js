@@ -50,7 +50,7 @@ test('explicit valve/switch actions respect state and valve capabilities',()=>{
 });
 const discovery = {
   zones:[{id:0,name:'Vorgarten',soil_moisture_sensor:'sensor.moisture',linked_entity:'switch.shared'},{id:2,name:'Westen',linked_entity:'switch.shared'}],
-  registry:Object.entries({duration:'sensor.renamed_duration',live_bucket:'sensor.renamed_balance',water_used:'sensor.renamed_usage',irrigation_needed:'binary_sensor.renamed_need'})
+  registry:Object.entries({duration:'sensor.renamed_duration',live_bucket:'sensor.renamed_balance',water_used:'sensor.renamed_usage',irrigation_needed:'binary_sensor.renamed_need',et_value:'sensor.renamed_et',problem:'binary_sensor.renamed_problem'})
     .map(([role,entity_id])=>({entity_id,platform:'smart_irrigation',unique_id:`smart_irrigation_0_${role}`})),
 };
 test('zone ID zero and string IDs are valid, invalid IDs and entity overrides rejected',()=>{
@@ -64,6 +64,26 @@ test('zone discovers renamed entities by unique ID and integration links, detect
   assert.equal(config.irrigation_needed_entity,'binary_sensor.renamed_need'); assert.equal(config.water_used_entity,'sensor.renamed_usage');
   assert.equal(config.moisture_entity,'sensor.moisture'); assert.equal(config.valve_entity,'switch.shared');
   assert.equal(config.name,'Vorgarten'); assert.equal(config._sharedValve,2); assert.deepEqual(config._autoMissing,[]);
+  assert.equal(config.et_entity,'sensor.renamed_et');assert.equal(config.problem_entity,'binary_sensor.renamed_problem');
+});
+test('ET and problem overrides validate sensor domains',()=>{
+  assert.throws(()=>validateConfig({entity:'sensor.zone',et_entity:'binary_sensor.et'}));
+  assert.throws(()=>validateConfig({entity:'sensor.zone',problem_entity:'sensor.problem'}));
+  assert.equal(validateConfig({zone:0,et_entity:'sensor.et',problem_entity:'binary_sensor.problem'}).et_entity,'sensor.et');
+});
+test('problem is independent of watering and unknown never clears it',()=>{
+  const config={entity:'sensor.zone',problem_entity:'binary_sensor.problem',valve_entity:'valve.zone',et_entity:'sensor.et'};
+  const states={'valve.zone':{state:'open',attributes:{supported_features:3}},'binary_sensor.problem':{state:'on',attributes:{reason:'no_flow'}},'sensor.et':{state:'-1.13'}};
+  const model=zoneModel(config,states);assert.equal(model.status,'watering');assert.equal(model.problem,'active');assert.equal(model.problemReason,'no_flow');assert.equal(model.et,-1.13);
+  for(const state of ['unknown','unavailable','unexpected'])assert.equal(zoneModel(config,{...states,'binary_sensor.problem':{state}}).problem,'unknown');
+  const clear=zoneModel(config,{...states,'binary_sensor.problem':{state:'off',attributes:{reason:'no_flow'}}});assert.equal(clear.problem,'clear');assert.equal(clear.problemReason,null);
+  assert.equal(zoneModel(config,{}).problem,'unknown');assert.equal(zoneModel({entity:'sensor.zone'},{}).problem,null);
+});
+test('missing optional diagnostics remain unknown and manual overrides win',()=>{
+  const missing=resolveZone({zone:0},{...discovery,registry:discovery.registry.filter(entry=>!entry.unique_id.endsWith('_problem')&&!entry.unique_id.endsWith('_et_value'))});
+  assert.equal(missing._problemExpected,true);assert.equal(missing._etExpected,true);assert.equal(zoneModel(missing,{}).problem,'unknown');assert.equal(zoneModel(missing,{}).et,null);
+  const overridden=resolveZone({zone:0,et_entity:'sensor.custom_et',problem_entity:'binary_sensor.custom_problem'},discovery);
+  assert.equal(overridden.et_entity,'sensor.custom_et');assert.equal(overridden.problem_entity,'binary_sensor.custom_problem');
 });
 test('manual overrides win, manual configs stay intact, zone switching never inherits discovery',()=>{
   const config={zone:0,entity:'sensor.custom',valve_entity:'valve.custom',name:'Custom'};

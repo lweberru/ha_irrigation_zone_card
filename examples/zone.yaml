@@ -4,4 +4,6 @@ zone: 0
 # Bei Bedarf automatisch zugeordnete Sensoren einzeln überschreiben:
 # moisture_entity: sensor.meine_bodenfeuchte
 # valve_entity: valve.mein_zonenventil
+# et_entity: sensor.meine_angewandte_et
+# problem_entity: binary_sensor.mein_zonenproblem
 # show_control: false

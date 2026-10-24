@@ -21,7 +21,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.3.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.4.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -79,6 +79,7 @@ Datum und Uhrzeit verwenden die HA-Zeitzone. Nicht verfügbare API-Daten werden 
 Im visuellen Karteneditor unter **Smart-Irrigation-Zone** die gewünschte Zone auswählen. Die Karte übernimmt automatisch:
 
 - Zonenname, berechnete Dauer, Bewässerungsbedarf, Live-Wasserbilanz und Wasserverbrauch.
+- Angewandte ET und Zonenproblemstatus einschließlich gemeldeter Ursache.
 - Den in Smart Irrigation hinterlegten Bodenfeuchtesensor (`soil_moisture_sensor`).
 - Das verknüpfte Ventil (`linked_entity`), sofern es ein `switch` oder `valve` ist.
 
@@ -114,6 +115,8 @@ irrigation_needed_entity: binary_sensor.smart_irrigation_vorgarten_irrigation_ne
 bucket_entity: sensor.smart_irrigation_vorgarten_live_bucket
 water_used_entity: sensor.smart_irrigation_vorgarten_water_used
 moisture_entity: sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit
+et_entity: sensor.smart_irrigation_vorgarten_et_value
+problem_entity: binary_sensor.smart_irrigation_vorgarten_problem
 ```
 
 Die Sensor-IDs im Beispiel an die eigene Zone anpassen. Optional eine Ventil-Entität ergänzen:
@@ -138,6 +141,8 @@ Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlä
 | `bucket_entity` | optional | Live-Wasserbilanz-Sensor; mit `zone` automatisch zugeordnet |
 | `moisture_entity` | optional | Bodenfeuchte; Ringfüllung nur bei Einheit `%` |
 | `water_used_entity` | optional | Verbrauchssensor mit dessen Einheit und Bezugszeitraum |
+| `et_entity` | optional / mit `zone` automatisch | Sensor für angewandte ET (`et_value`) |
+| `problem_entity` | optional / mit `zone` automatisch | `binary_sensor` für Zonenprobleme (`problem`) |
 | `valve_entity` | optional | `switch.*` oder `valve.*` |
 | `show_control` | `true` | Manuelle Schaltfläche am Ventil anzeigen |
 | `confirm_open` | `true` | Bestätigung vor manuellem Öffnen |
@@ -145,7 +150,7 @@ Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlä
 | `bucket_max` | `maximum_bucket` am Dauersensor, sonst `25` | Rechtes Skalenende, größer als 0, in der Einheit der Wasserbilanz |
 | `language` | `auto` | `auto`, `de` oder `en`; andere HA-Sprachen erhalten englische Texte |
 
-Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und reduzierte Bewegung werden berücksichtigt. In Sections-Ansichten belegt die Karte standardmäßig 12 Spalten und automatische Höhe; die Breite ist über das HA-Layout anpassbar. Werte lassen sich über die Dauer-, Verbrauchs- und Bodenfeuchteflächen im HA-Detaildialog öffnen.
+Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und reduzierte Bewegung werden berücksichtigt. In Sections-Ansichten belegt die Karte standardmäßig 12 Spalten und automatische Höhe; die Breite ist über das HA-Layout anpassbar. Dauer, Verbrauch, Bodenfeuchte und angewandte ET öffnen per Klick ihren HA-Detaildialog. Die Wasserbilanz ist über Wert oder Skala anklickbar; ein Diagrammsymbol weist auf den verfügbaren Verlauf hin. Der Verlauf im nativen HA-Sensordialog hängt von den gespeicherten Recorder-Daten ab. Die Karte führt keinen eigenen Verlaufsspeicher und ändert keine Recorder-Einstellungen. Die Wasserbilanz lässt sich auch per Tastatur (Enter/Leertaste) öffnen.
 
 ### Bedeutung der Anzeigen
 
@@ -153,6 +158,8 @@ Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und red
 - **Bodenfeuchte:** Der Ring zeigt den Sensorwert, ohne pauschale Gut-/Schlecht-Grenzen für unterschiedliche Böden zu erfinden. Außerhalb 0–100 % wird nur die Ringfüllung begrenzt. Andere Einheiten werden als Zahl ohne Füllung angezeigt.
 - **Dauer:** Berechnete Empfehlung, kein Countdown. Sekunden, Minuten und Stunden werden lesbar formatiert; unbekannte Einheiten bleiben erhalten.
 - **Wasserverbrauch:** Der Wert des Sensors, kein errechneter Tagesverbrauch. Den Bezugszeitraum bestimmt die verwendete Entität.
+- **Angewandte ET:** Eine kleine Kennzahl bei der Bilanz mit unverändertem Vorzeichen und der Einheit des Sensors. Ohne Bilanzsensor erscheint sie als eigene Zeile. Die Karte übernimmt den von Smart Irrigation als `et_value` veröffentlichten Wert, der auf dem gespeicherten Berechnungsdelta beruht. Sie interpretiert ihn nicht als reine Verdunstung, berechnet keinen Tageswert daraus und macht daraus keinen Live-Zähler. Der Detaildialog zeigt den zugehörigen Sensor. Fehlende Werte erscheinen als `—`, auch bei automatisch erwarteten, aber nicht gefundenen ET-Sensoren.
+- **Zonenproblem:** Bei `on` erscheint oberhalb des Bedarfsstatus ein auffälliger Warnhinweis. Bekannte Ursachen aus `reason` werden übersetzt (`valve_did_not_open`, `valve_did_not_close`, `no_flow`), andere Meldungen als sicher kodierter Text angezeigt. Ein Klick öffnet den Problemsensor. Ohne Ursache verweist die Karte auf dessen Details. Bei `off` entfällt der Warnbereich; fehlende, unbekannte oder nicht verfügbare Problemsensoren werden ausdrücklich als **Problemstatus unbekannt** angezeigt. Bei manueller Konfiguration ohne `problem_entity` entfällt die Funktion. Die Integration kann ein gemeldetes Problem bis zu einem erfolgreichen Lauf speichern; die Karte quittiert oder löscht es nicht. Ventilzustand und Schließen bleiben auch bei einer Warnung sichtbar.
 - **Status:** Ein aktives oder bewegtes Ventil hat Vorrang, danach gilt der Bedarfssensor. Ohne bekannten Bedarf zeigt die Karte „Wasserbedarf unbekannt“. „Ventil aktiv“ zeigt den gemeldeten Ventilzustand, keinen gemessenen Wasserfluss.
 - **Fehlende Daten:** `unknown`, `unavailable` und fehlende Entitäten erscheinen als `—` mit Hinweis. Sie werden nicht in 0 umgewandelt.
 
@@ -186,7 +193,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Insgesamt 18 Logiktests und 18 Browserprüfungen. Auch die zentrale Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 21 Logiktests und 22 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 
@@ -198,5 +205,6 @@ Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen,
 - [HACS: Dashboard-Repository](https://www.hacs.xyz/docs/publish/plugin/)
 - [Smart Irrigation: Zonen-WebSocket](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/websockets.py)
 - [Smart Irrigation: stabile Sensor-Kennungen](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/sensor.py)
+- [Smart Irrigation: Problemstatus und Ursache](https://github.com/altmenorg/HAsmartirrigation/blob/master/custom_components/smart_irrigation/binary_sensor.py)
 
 MIT-Lizenz.

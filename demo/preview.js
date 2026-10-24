@@ -5,6 +5,7 @@ const config = {
   irrigation_needed_entity:'binary_sensor.smart_irrigation_vorgarten_irrigation_needed',
   bucket_entity:'sensor.smart_irrigation_vorgarten_live_bucket', water_used_entity:'sensor.smart_irrigation_vorgarten_water_used',
   moisture_entity:'sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit', valve_entity:'valve.vorgarten',
+  et_entity:'sensor.smart_irrigation_vorgarten_et_value', problem_entity:'binary_sensor.smart_irrigation_vorgarten_problem',
 };
 export const fixture = (overrides = {}) => ({
   'sensor.smart_irrigation_vorgarten':{state:'0',attributes:{unit_of_measurement:'s',device_class:'duration',maximum_bucket:24,friendly_name:'Vorgarten Dauer'}},
@@ -12,7 +13,9 @@ export const fixture = (overrides = {}) => ({
   'sensor.smart_irrigation_vorgarten_live_bucket':{state:'3.52',attributes:{unit_of_measurement:'mm'}},
   'sensor.smart_irrigation_vorgarten_water_used':{state:'0.0',attributes:{unit_of_measurement:'L'}},
   'sensor.vorgarten_pflanzen_vorgarten_bodenfeuchtigkeit':{state:'100',attributes:{unit_of_measurement:'%'}},
-  'valve.vorgarten':{state:'closed',attributes:{supported_features:3}}, ...overrides,
+  'valve.vorgarten':{state:'closed',attributes:{supported_features:3}},
+  'sensor.smart_irrigation_vorgarten_et_value':{state:'-1.13',attributes:{unit_of_measurement:'mm'}},
+  'binary_sensor.smart_irrigation_vorgarten_problem':{state:'off',attributes:{reason:null}}, ...overrides,
 });
 window.demoCalls = [];
 window.demoConfig = config;
@@ -35,12 +38,13 @@ const cases = [
     [config.moisture_entity]:{state:'28',attributes:{unit_of_measurement:'%'}},
     [config.water_used_entity]:{state:'142.6',attributes:{unit_of_measurement:'L'}},
   })},
-  {name:'Hochbeet',caption:'03 / Ventil aktiv · manuelle Steuerung',states:fixture({
+  {name:'Hochbeet',caption:'03 / Ventil aktiv · Problem gemeldet',states:fixture({
     [config.entity]:{state:'360',attributes:{unit_of_measurement:'s',maximum_bucket:24}},
     [config.bucket_entity]:{state:'-2.1',attributes:{unit_of_measurement:'mm'}},
     [config.moisture_entity]:{state:'64',attributes:{unit_of_measurement:'%'}},
     [config.water_used_entity]:{state:'36.2',attributes:{unit_of_measurement:'L'}},
     [config.valve_entity]:{state:'open',attributes:{supported_features:3}},
+    [config.problem_entity]:{state:'on',attributes:{reason:'no_flow'}},
   })},
 ];
 for (const scenario of cases) {

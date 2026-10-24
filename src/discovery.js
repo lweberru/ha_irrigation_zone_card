@@ -1,7 +1,7 @@
 import { entityKeys } from './model.js';
 
 export const hasZone = config => config?.zone !== undefined && config.zone !== '';
-const roles = { entity:'duration', irrigation_needed_entity:'irrigation_needed', bucket_entity:'live_bucket', water_used_entity:'water_used' };
+const roles = { entity:'duration', irrigation_needed_entity:'irrigation_needed', bucket_entity:'live_bucket', water_used_entity:'water_used', et_entity:'et_value', problem_entity:'problem' };
 
 // Match integration-owned unique IDs, never entity-name prefixes or translated labels.
 export function resolveZone(config, discovery) {
@@ -10,11 +10,13 @@ export function resolveZone(config, discovery) {
   const result = { ...config };
   if (!zone) return { ...result, _discoveryIssue:discovery?.error ? 'discoveryFailed' : discovery ? 'zoneMissing' : 'loading' };
   result.name = config.name || zone.name;
+  result._etExpected = true;
+  result._problemExpected = true;
   const registry = discovery.registry || [];
   for (const [key, role] of Object.entries(roles)) {
     if (config[key]) continue;
     const candidates = registry.filter(entry => entry.platform === 'smart_irrigation' && !entry.disabled_by &&
-      entry.unique_id === `smart_irrigation_${zone.id}_${role}` && entry.entity_id?.startsWith(key === 'irrigation_needed_entity' ? 'binary_sensor.' : 'sensor.'));
+      entry.unique_id === `smart_irrigation_${zone.id}_${role}` && entry.entity_id?.startsWith(['irrigation_needed_entity','problem_entity'].includes(key) ? 'binary_sensor.' : 'sensor.'));
     // Ambiguity is surfaced as a missing role; never silently choose another zone.
     if (candidates.length === 1) result[key] = candidates[0].entity_id;
   }
@@ -22,7 +24,7 @@ export function resolveZone(config, discovery) {
   if (!config.valve_entity && /^(switch|valve)\.[a-z0-9_]+$/.test(zone.linked_entity || '')) result.valve_entity = zone.linked_entity;
   const users = discovery.zones.filter(item => item.linked_entity === result.valve_entity);
   result._sharedValve = result.valve_entity && users.length > 1 ? users.length : 0;
-  result._autoMissing = Object.keys(roles).filter(key => !result[key]);
+  result._autoMissing = Object.keys(roles).filter(key => !['et_entity','problem_entity'].includes(key) && !result[key]);
   if (discovery.error) result._discoveryIssue = 'discoveryFailed';
   return result;
 }

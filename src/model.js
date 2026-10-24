@@ -1,4 +1,4 @@
-export const entityKeys = ['entity', 'irrigation_needed_entity', 'bucket_entity', 'water_used_entity', 'moisture_entity', 'valve_entity'];
+export const entityKeys = ['entity', 'irrigation_needed_entity', 'bucket_entity', 'water_used_entity', 'moisture_entity', 'valve_entity', 'et_entity', 'problem_entity'];
 
 export function numeric(value) {
   if (value === null || value === undefined || String(value).trim() === '') return null;
@@ -23,8 +23,10 @@ export function validateConfig(config) {
     }
   }
   if (config.valve_entity && !/^(switch|valve)\./.test(config.valve_entity)) throw new Error('valve_entity must be a switch or valve.');
-  if (config.irrigation_needed_entity && !config.irrigation_needed_entity.startsWith('binary_sensor.')) throw new Error('irrigation_needed_entity must be a binary_sensor.');
-  for (const key of ['bucket_entity', 'water_used_entity', 'moisture_entity']) {
+  for (const key of ['irrigation_needed_entity', 'problem_entity']) {
+    if (config[key] && !config[key].startsWith('binary_sensor.')) throw new Error(`${key} must be a binary_sensor.`);
+  }
+  for (const key of ['bucket_entity', 'water_used_entity', 'moisture_entity', 'et_entity']) {
     if (config[key] && !config[key].startsWith('sensor.')) throw new Error(`${key} must be a sensor.`);
   }
   for (const key of ['bucket_min', 'bucket_max']) {
@@ -65,7 +67,14 @@ export function zoneModel(config, states) {
   const moisture = numeric(moistureEntity?.state);
   const moisturePercent = moistureEntity?.attributes?.unit_of_measurement === '%' && moisture !== null;
   const status = active ? 'watering' : needed === 'on' ? 'needed' : needed === 'off' ? 'balanced' : 'unknown';
+  const problemEntity = states[config.problem_entity];
+  const problem = config.problem_entity || config._problemExpected
+    ? problemEntity?.state === 'on' ? 'active' : problemEntity?.state === 'off' ? 'clear' : 'unknown'
+    : null;
+  const reason = problemEntity?.attributes?.reason;
+  const problemReason = problem === 'active' && typeof reason === 'string' && reason.trim() ? reason.trim() : null;
   return { main, balance, min, max, zero, position, moisture,
+    et: numeric(states[config.et_entity]?.state), problem, problemReason,
     moisturePercent, moistureFill: moisturePercent ? clamp(moisture, 0, 100) : 0,
     status, active, valve,
     action: config.valve_entity ? valveAction(config.valve_entity, valve?.state, valve?.attributes?.supported_features ?? 0) : null,

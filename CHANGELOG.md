@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-24
+
+- Angewandte ET als kompakte, separat anklickbare Kennzahl bei der Wasserbilanz; Vorzeichen und Sensoreinheit bleiben erhalten.
+- Auffälliger Hinweis für gemeldete Zonenprobleme mit übersetzten bekannten Ursachen und Detaildialog. Unbekannte oder fehlende Problemzustände erscheinen ausdrücklich als unbekannt.
+- ET- und Problemsensor werden mit `zone` automatisch über stabile Kennungen gefunden. Neue optionale Felder `et_entity` und `problem_entity` im Editor und in YAML.
+- Wert und Skala der Wasserbilanz öffnen den nativen HA-Sensordialog mit verfügbarem Verlauf; Diagrammsymbol und Tastaturbedienung.
+- 21 Logiktests und 22 Browserprüfungen, einschließlich Live-Updates und sicherer Darstellung von Problemtexten.
+
 ## 0.3.0 — 2026-10-24
 
 - Neue zentrale Karte **Irrigation Overview** (`custom:irrigation-overview-card`) in derselben HACS-Datei.

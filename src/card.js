@@ -10,6 +10,8 @@ export const translations = {
 };
 Object.assign(translations.de, { sharedValve:'Gemeinsames Ventil', loading:'Zone wird geladen …', zoneMissing:'Die ausgewählte Smart-Irrigation-Zone wurde nicht gefunden.', discoveryFailed:'Automatische Zuordnung nicht verfügbar. Verbindung und Smart-Irrigation-Integration prüfen oder Entitäten manuell eintragen.', autoMissing:'Sensoren nicht automatisch gefunden (optional manuell zuweisen)' });
 Object.assign(translations.en, { sharedValve:'Shared valve', loading:'Loading zone …', zoneMissing:'The selected Smart Irrigation zone was not found.', discoveryFailed:'Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.', autoMissing:'Sensors not discovered (assign manually if needed)' });
+Object.assign(translations.de, { balanceHistory:'Wasserbilanz und Verlauf öffnen', et:'Angewandte ET', etDescription:'Zuletzt angewandter ET-Wert aus Smart Irrigation; kein Live-Zähler.', problem:'Zonenproblem gemeldet', problemUnknown:'Problemstatus unbekannt', problemUnknownDetail:'Der Problemsensor ist nicht verfügbar oder wurde nicht gefunden.', problemDetail:'Details im Problemsensor prüfen.', problemReasons:{valve_did_not_open:'Ventil hat nicht geöffnet',valve_did_not_close:'Ventil hat nicht geschlossen',no_flow:'Kein Durchfluss erkannt'} });
+Object.assign(translations.en, { balanceHistory:'Open water balance and history', et:'Applied ET', etDescription:'Last applied ET value from Smart Irrigation; not a live counter.', problem:'Zone problem reported', problemUnknown:'Problem status unknown', problemUnknownDetail:'The problem sensor is unavailable or was not found.', problemDetail:'Check the problem sensor for details.', problemReasons:{valve_did_not_open:'Valve did not open',valve_did_not_close:'Valve did not close',no_flow:'No flow detected'} });
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
 const icon = value => `<ha-icon icon="${escape(value)}"></ha-icon>`;
 
@@ -48,7 +50,7 @@ export class IrrigationZoneCard extends HTMLElement {
     if (Number.isSafeInteger(zone) && zone >= 0) return {zone};
     if (!entity) return { entity:'sensor.smart_irrigation_zone' };
     const result = { entity };
-    for (const [key, id] of Object.entries({ irrigation_needed_entity:entity.replace('sensor.', 'binary_sensor.') + '_irrigation_needed', bucket_entity:entity + '_live_bucket', water_used_entity:entity + '_water_used' })) {
+    for (const [key, id] of Object.entries({ irrigation_needed_entity:entity.replace('sensor.', 'binary_sensor.') + '_irrigation_needed', bucket_entity:entity + '_live_bucket', water_used_entity:entity + '_water_used', et_entity:entity + '_et_value', problem_entity:entity.replace('sensor.', 'binary_sensor.') + '_problem' })) {
       if (hass.states[id]) result[key] = id;
     }
     return result;
@@ -92,8 +94,12 @@ export class IrrigationZoneCard extends HTMLElement {
     const valveState = { on:t.on, open:t.on, off:t.off, closed:t.off, opening:t.opening, closing:t.closing }[m.valve?.state] || t.unavailable;
     const close = ['turn_off','close_valve'].includes(m.action?.service);
     const moistureUnit = this._hass.states[config.moisture_entity]?.attributes?.unit_of_measurement || '';
+    const etUnit = this._hass.states[config.et_entity]?.attributes?.unit_of_measurement || '';
+    const etHTML = config.et_entity || config._etExpected ? `<${config.et_entity ? 'button' : 'div'} class="et-detail" ${config.et_entity ? `data-entity="${escape(config.et_entity)}"` : ''} title="${escape(t.etDescription)}">${icon('mdi:weather-sunny')}<span>${escape(t.et)}</span><strong>${escape(this._number(m.et,true))}${m.et !== null ? ` <small>${escape(etUnit)}</small>` : ''}</strong></${config.et_entity ? 'button' : 'div'}>` : '';
+    const problemText = m.problemReason && Object.hasOwn(t.problemReasons,m.problemReason) ? t.problemReasons[m.problemReason] : m.problemReason || t.problemDetail;
     this.shadowRoot.innerHTML = `<style>${styles}</style><ha-card><div class="wrap">
       <header><div class="zone-icon">${icon(config.icon || 'mdi:sprinkler-variant')}</div><div class="heading"><div class="eyebrow">${escape(t.zone)}</div><h2>${escape(name)}</h2></div><button class="more" aria-label="${escape(t.details)}">${icon('mdi:dots-horizontal')}</button></header>
+      ${m.problem === 'active' || m.problem === 'unknown' ? `<div class="problem-banner ${m.problem}" role="${m.problem === 'active' ? 'alert' : 'status'}"><${config.problem_entity ? 'button' : 'div'} class="problem-content" ${config.problem_entity ? `data-entity="${escape(config.problem_entity)}"` : ''}>${icon(m.problem === 'active' ? 'mdi:alert-circle-outline' : 'mdi:help-circle-outline')}<span><strong>${escape(m.problem === 'active' ? t.problem : t.problemUnknown)}</strong><span>${escape(m.problem === 'active' ? problemText : t.problemUnknownDetail)}</span></span></${config.problem_entity ? 'button' : 'div'}></div>` : ''}
       <div class="status ${m.status}" role="status"><span class="dot"></span>${escape(t[m.status])}</div>
       ${config.moisture_entity || config.bucket_entity ? `<div class="overview">
         ${config.moisture_entity ? `<button class="ring ring-button" data-entity="${escape(config.moisture_entity)}" aria-label="${escape(t.moisture + ': ' + this._state(config.moisture_entity))}">
@@ -101,11 +107,13 @@ export class IrrigationZoneCard extends HTMLElement {
           <div class="ring-content">${icon('mdi:sprout')}<div class="ring-value">${escape(this._number(m.moisture))}<small>${escape(m.moisture === null ? '' : moistureUnit)}</small></div><div class="ring-label">${escape(t.moisture)}</div></div>
         </button>` : ''}
         ${config.bucket_entity ? `<div class="balance ${m.balance < 0 ? 'deficit' : ''}" style="--zero:${m.zero}%;--position:${m.position ?? m.zero}%">
-          <div class="label">${escape(t.balance)}</div><div class="balance-value">${escape(this._number(m.balance,true))} <small>${escape(this._hass.states[config.bucket_entity]?.attributes?.unit_of_measurement || '')}</small></div>
+          <button class="balance-detail" data-entity="${escape(config.bucket_entity)}" aria-label="${escape(t.balanceHistory)}" title="${escape(t.balanceHistory)}"><div class="label balance-label">${escape(t.balance)}${icon('mdi:chart-line')}</div><div class="balance-value">${escape(this._number(m.balance,true))} <small>${escape(this._hass.states[config.bucket_entity]?.attributes?.unit_of_measurement || '')}</small></div>
           <div class="hint">${escape(m.balance === null ? t.unavailable : m.balance < 0 ? t.deficit : m.balance > 0 ? t.reserve : t.neutral)}</div>
-          <div class="balance-bar" role="img" aria-label="${escape(t.balance + ': ' + this._state(config.bucket_entity))}"><span class="zero"></span>${m.position === null ? '' : '<span class="marker"></span>'}</div><div class="scale"><span>${escape(this._number(m.min))}</span><span class="center">0</span><span>+${escape(this._number(m.max))}</span></div>
+          <div class="balance-bar" role="img" aria-label="${escape(t.balance + ': ' + this._state(config.bucket_entity))}"><span class="zero"></span>${m.position === null ? '' : '<span class="marker"></span>'}</div><div class="scale"><span>${escape(this._number(m.min))}</span><span class="center">0</span><span>+${escape(this._number(m.max))}</span></div></button>
+          ${etHTML}
         </div>` : ''}
       </div>` : '<div class="empty-overview"></div>'}
+      ${!config.bucket_entity ? etHTML : ''}
       <div class="stats"><button class="stat" data-entity="${escape(config.entity)}">${icon('mdi:timer-outline')}<div><div class="stat-value">${durationHTML}</div><div class="label">${escape(t.duration)}</div></div></button>
       ${config.water_used_entity ? `<button class="stat" data-entity="${escape(config.water_used_entity)}">${icon('mdi:water-outline')}<div><div class="stat-value">${escape(this._state(config.water_used_entity))}</div><div class="label">${escape(t.used)}</div></div></button>` : ''}</div>
       ${config.valve_entity ? `<div class="control">${icon(m.active ? 'mdi:pipe-valve' : 'mdi:valve-closed')}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} · ${escape(valveState)}</div><div class="control-state">${escape(t.manual)}</div></div>${config.show_control ? `<button id="control" class="${close ? 'close' : ''}" ${!m.action || this._pending ? 'disabled' : ''}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ''}</div>` : ''}

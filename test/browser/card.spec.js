@@ -52,6 +52,14 @@ test('more-info is composed and config text cannot inject markup',async({page})=
   await card.getByRole('button',{name:'Zonendetails öffnen'}).click();
   expect(await page.evaluate(()=>window.moreInfo)).toEqual({entityId:'sensor.smart_irrigation_vorgarten'});
 });
+test('water balance value and scale open the correct native history dialog with keyboard support',async({page})=>{
+  await page.evaluate(()=>document.addEventListener('hass-more-info',event=>window.balanceInfo=event.detail));
+  const card=page.locator('irrigation-zone-card').first();
+  await card.locator('.balance-value').click();expect(await page.evaluate(()=>window.balanceInfo)).toEqual({entityId:'sensor.smart_irrigation_vorgarten_live_bucket'});
+  await page.evaluate(()=>window.balanceInfo=null);await card.locator('.balance-bar').click();expect(await page.evaluate(()=>window.balanceInfo)).toEqual({entityId:'sensor.smart_irrigation_vorgarten_live_bucket'});
+  await page.evaluate(()=>window.balanceInfo=null);await card.locator('.balance-detail').focus();await page.keyboard.press('Enter');expect(await page.evaluate(()=>window.balanceInfo)).toEqual({entityId:'sensor.smart_irrigation_vorgarten_live_bucket'});
+  await expect(card.locator('button button')).toHaveCount(0);
+});
 test('responsive layout stays within card at phone width; light/dark previews',async({page})=>{
   await page.setViewportSize({width:390,height:1600});
   expect(await page.locator('irrigation-zone-card').first().evaluate(card=>card.shadowRoot.querySelector('ha-card').scrollWidth <= card.clientWidth)).toBe(true);
@@ -75,7 +83,7 @@ async function zoneFixture(page) {
   await page.evaluate(()=>{
     window.discoveryCallbacks={}; window.discoveryUnsubs=0; window.discoveryReads=[];
     window.zoneData=[{id:0,name:'Automatische Zone',soil_moisture_sensor:window.demoConfig.moisture_entity,linked_entity:'valve.vorgarten'},{id:2,name:'Andere Zone',linked_entity:'valve.vorgarten'}];
-    const roles={entity:'duration',bucket_entity:'live_bucket',water_used_entity:'water_used',irrigation_needed_entity:'irrigation_needed'};
+    const roles={entity:'duration',bucket_entity:'live_bucket',water_used_entity:'water_used',irrigation_needed_entity:'irrigation_needed',et_entity:'et_value',problem_entity:'problem'};
     const hass=window.demoHass();
     window.zoneRegistry=Object.entries(roles).map(([key,role])=>{
       const old=window.demoConfig[key]; const entity_id=`${old.split('.')[0]}.renamed_${role}`;
@@ -107,6 +115,29 @@ test('selecting just a zone resolves renamed sensors, linked moisture and a shar
   page.once('dialog',dialog=>dialog.accept());
   await card.getByRole('button',{name:'Öffnen',exact:true}).click();
   expect(await page.evaluate(()=>window.demoCalls.at(-1))).toEqual({domain:'valve',service:'open_valve',data:{entity_id:'valve.vorgarten'}});
+});
+test('auto-discovered ET and problem update live and keep watering visible',async({page})=>{
+  await zoneFixture(page);const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('.et-detail')).toHaveText('Angewandte ET-1,1 mm');await expect(card.locator('.problem-banner')).toHaveCount(0);
+  await page.evaluate(()=>{
+    const card=document.querySelector('irrigation-zone-card');card.hass={...card._hass,states:{...card._hass.states,'sensor.renamed_et_value':{state:'1.2',attributes:{unit_of_measurement:'mm'}},'binary_sensor.renamed_problem':{state:'on',attributes:{reason:'valve_did_not_close'}},'valve.vorgarten':{state:'open',attributes:{supported_features:3}}}};
+  });
+  await expect(card.locator('.et-detail')).toContainText('+1,2 mm');await expect(card.getByRole('alert')).toContainText('Ventil hat nicht geschlossen');await expect(card.locator('.status')).toHaveText('Ventil aktiv');await expect(card.locator('#control')).toHaveText('Schließen');
+  await page.evaluate(()=>document.addEventListener('hass-more-info',event=>window.diagInfo=event.detail));await card.locator('.et-detail').click();expect(await page.evaluate(()=>window.diagInfo)).toEqual({entityId:'sensor.renamed_et_value'});
+  await card.locator('.problem-content').click();expect(await page.evaluate(()=>window.diagInfo)).toEqual({entityId:'binary_sensor.renamed_problem'});
+});
+test('unknown problem stays visible and missing ET is not a zero reading',async({page})=>{
+  await zoneFixture(page);const card=page.locator('irrigation-zone-card').first();
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-zone-card');card.hass={...card._hass,states:{...card._hass.states,'sensor.renamed_et_value':{state:'unavailable',attributes:{}},'binary_sensor.renamed_problem':{state:'unknown',attributes:{}}}};});
+  await expect(card.locator('.problem-banner')).toContainText('Problemstatus unbekannt');await expect(card.locator('.et-detail strong')).toHaveText('—');await expect(card.getByRole('alert')).toHaveCount(0);
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-zone-card');card.hass={...card._hass,states:{...card._hass.states,'binary_sensor.renamed_problem':{state:'off',attributes:{reason:'no_flow'}}}};});
+  await expect(card.locator('.problem-banner')).toHaveCount(0);
+});
+test('problem reasons are escaped, generic reasons remain useful, ET also works without a bucket',async({page})=>{
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-zone-card');const config={...window.demoConfig};delete config.bucket_entity;card.setConfig(config);card.hass={...window.demoHass(),states:{...window.demoHass().states,[config.problem_entity]:{state:'on',attributes:{reason:'<img src=x onerror=alert(1)>'}},[config.et_entity]:{state:'0',attributes:{unit_of_measurement:'mm'}}}};});
+  const card=page.locator('irrigation-zone-card').first();await expect(card.getByRole('alert')).toContainText('<img src=x onerror=alert(1)>');await expect(card.locator('img')).toHaveCount(0);await expect(card.locator('.et-detail strong')).toHaveText('0 mm');
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-zone-card');card.hass={...card._hass,states:{...card._hass.states,[window.demoConfig.problem_entity]:{state:'on',attributes:{reason:null}}}};});
+  await expect(card.getByRole('alert')).toContainText('Details im Problemsensor prüfen');
 });
 test('zone dropdown shares discovery, resets overrides on change and persists only the selection',async({page})=>{
   await zoneFixture(page);
