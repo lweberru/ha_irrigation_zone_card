@@ -1,19 +1,12 @@
 import { watchOverview } from './overview-data.js';
-import { zoneRules, ruleLabels } from './rules.js';
+import { zoneRules } from './rules.js';
 import { styles } from './styles.js';
 import { entityKeys, validateConfig, zoneModel, durationParts } from './model.js';
 import './editor.js';
 import './overview-card.js';
 import { hasZone, resolveZone, watchDiscovery, sameEntities } from './discovery.js';
+import { resolveLanguage, translate } from './i18n/index.js';
 
-export const translations = {
-  de: { zone:'Bewässerungszone', watering:'Ventil aktiv', needed:'Bewässerung nötig', balanced:'Kein Wasserbedarf', unknown:'Wasserbedarf unbekannt', moisture:'Bodenfeuchte', balance:'Wasserbilanz · live', reserve:'Wasservorrat', deficit:'Wasserdefizit', neutral:'Ausgeglichen', duration:'Berechnete Dauer', used:'Wasserverbrauch', valve:'Zonenventil', open:'Öffnen', close:'Schließen', opening:'Öffnet …', closing:'Schließt …', on:'Geöffnet', off:'Geschlossen', unavailable:'Nicht verfügbar', pending:'Wird gesendet …', confirm:'Ventil manuell öffnen? Es bleibt geöffnet, bis es geschlossen wird. Die berechnete Dauer startet keinen Timer.', manual:'Manuell · ohne Abschalttimer', failed:'Ventil konnte nicht geschaltet werden.', missing:'Nicht verfügbar', details:'Zonendetails öffnen', noData:'Die konfigurierten Sensoren liefern noch keine Werte.' },
-  en: { zone:'Irrigation zone', watering:'Valve active', needed:'Irrigation needed', balanced:'No irrigation needed', unknown:'Water demand unknown', moisture:'Soil moisture', balance:'Water balance · live', reserve:'Water reserve', deficit:'Water deficit', neutral:'Balanced', duration:'Calculated duration', used:'Water used', valve:'Zone valve', open:'Open', close:'Close', opening:'Opening …', closing:'Closing …', on:'Open', off:'Closed', unavailable:'Unavailable', pending:'Sending …', confirm:'Open valve manually? It stays open until closed. The calculated duration does not start a timer.', manual:'Manual · no shutoff timer', failed:'Could not control the valve.', missing:'Unavailable', details:'Open zone details', noData:'The configured sensors have no readings yet.' },
-};
-Object.assign(translations.de, { sharedValve:'Gemeinsames Ventil', loading:'Zone wird geladen …', zoneMissing:'Die ausgewählte Smart-Irrigation-Zone wurde nicht gefunden.', discoveryFailed:'Automatische Zuordnung nicht verfügbar. Verbindung und Smart-Irrigation-Integration prüfen oder Entitäten manuell eintragen.', autoMissing:'Sensoren nicht automatisch gefunden (optional manuell zuweisen)' });
-Object.assign(translations.en, { sharedValve:'Shared valve', loading:'Loading zone …', zoneMissing:'The selected Smart Irrigation zone was not found.', discoveryFailed:'Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.', autoMissing:'Sensors not discovered (assign manually if needed)' });
-Object.assign(translations.de, { balanceHistory:'Wasserbilanz und Verlauf öffnen', et:'Angewandte ET', etDescription:'Zuletzt angewandter ET-Wert aus Smart Irrigation; kein Live-Zähler.', problem:'Zonenproblem gemeldet', problemUnknown:'Problemstatus unbekannt', problemUnknownDetail:'Der Problemsensor ist nicht verfügbar oder wurde nicht gefunden.', problemDetail:'Details im Problemsensor prüfen.', problemReasons:{valve_did_not_open:'Ventil hat nicht geöffnet',valve_did_not_close:'Ventil hat nicht geschlossen',no_flow:'Kein Durchfluss erkannt'} });
-Object.assign(translations.en, { balanceHistory:'Open water balance and history', et:'Applied ET', etDescription:'Last applied ET value from Smart Irrigation; not a live counter.', problem:'Zone problem reported', problemUnknown:'Problem status unknown', problemUnknownDetail:'The problem sensor is unavailable or was not found.', problemDetail:'Check the problem sensor for details.', problemReasons:{valve_did_not_open:'Valve did not open',valve_did_not_close:'Valve did not close',no_flow:'No flow detected'} });
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
 const icon = value => `<ha-icon icon="${escape(value)}"></ha-icon>`;
 
@@ -47,7 +40,7 @@ export class IrrigationZoneCard extends HTMLElement {
   _rulesHTML(config, lang) {
     const rules = zoneRules(config, this._discovery, this._system);
     if (!rules) return '';
-    const t = ruleLabels[lang?.startsWith('de') ? 'de' : 'en'];
+    const t = translate(lang, 'rules');
     const value = (number, unit) => number === null ? '—' : `${escape(unit === 'in' ? new Intl.NumberFormat(this._hass.locale?.language || this._hass.language || 'en',{maximumFractionDigits:3}).format(number) : this._number(number))} <small>${escape(unit)}</small>`;
     const tiles = [
       ['mdi:water-minus-outline',t.threshold,rules.unit ? value(rules.threshold,rules.unit) : '—',t.thresholdHint],
@@ -111,8 +104,8 @@ export class IrrigationZoneCard extends HTMLElement {
     const focused = this.shadowRoot.activeElement;
     const focusTarget = focused?.id ? {id:focused.id} : focused?.dataset.entity ? {entity:focused.dataset.entity} : focused?.classList.contains('more') ? {more:true} : null;
     const config = this._resolved();
-    const lang = config.language === 'auto' || !config.language ? this._hass.language : config.language;
-    const t = this._t = translations[lang?.startsWith('de') ? 'de' : 'en'];
+    const lang = resolveLanguage(config.language, this._hass);
+    const t = this._t = translate(lang, 'card');
     const m = zoneModel(config, this._hass.states);
     const name = config.name || m.main?.attributes?.friendly_name?.replace(/ (Dauer|Duration)$/i,'') || 'Smart Irrigation';
     const duration = durationParts(m.main);

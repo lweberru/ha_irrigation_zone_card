@@ -27,8 +27,3 @@ export function zoneRules(config, discovery, system) {
     checksKnown:!!checks?.length && !system?.error && checks.every(item => item.enabled !== true || item.available === true),
   };
 }
-
-export const ruleLabels = {
-  de:{title:'Bewässerungsregeln',threshold:'Defizitschwelle',thresholdHint:'Konfigurierte Startschwelle · kein Zielwert der Wasserbilanz',interval:'Mindestabstand',day:'Tag',days:'Tage',own:'Zone',global:'Global',moisture:'Bodenfeuchte-Sperre',noSensor:'Kein Sensor',at:'ab',limit:'Laufzeitlimit',unlimited:'Ohne Limit',intervalHeld:'Mindestabstand noch nicht erreicht',moistureHeld:'Bodenfeuchte hält die Zone zurück',globalHeld:'Zentrale Schutzprüfung hält den Start zurück',unknown:'Aktuelle Schutzprüfung nicht verfügbar',source:'Konfigurierte Werte · Änderungen in Smart Irrigation'},
-  en:{title:'Irrigation rules',threshold:'Deficit threshold',thresholdHint:'Configured start threshold · not a water balance target',interval:'Minimum interval',day:'day',days:'days',own:'Zone',global:'Global',moisture:'Soil moisture hold',noSensor:'No sensor',at:'from',limit:'Runtime limit',unlimited:'No limit',intervalHeld:'Minimum interval not yet reached',moistureHeld:'Soil moisture is holding this zone',globalHeld:'A central protection check is holding the start',unknown:'Current protection preview unavailable',source:'Configured values · edit in Smart Irrigation'},
-};

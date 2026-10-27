@@ -1,5 +1,12 @@
 # Changelog
 
+## Unveröffentlicht
+
+- Niederländische Übersetzung (`language: nl`) für beide Karten und Editoren sowie `README.nl.md`.
+- Alle Texte liegen jetzt in `src/i18n/`, eine Datei pro Sprache. Neue Sprachen brauchen nur eine Datei und einen Eintrag in `src/i18n/index.js`; Editor-Auswahl und Konfigurationsprüfung übernehmen sie automatisch. Fehlende Texte fallen auf Englisch zurück.
+- Regionale HA-Sprachen wie `nl-BE` oder `de-CH` verwenden ihre Grundsprache.
+- Neuer Logiktest stellt sicher, dass jede Sprache dieselben Schlüssel wie Englisch hat.
+
 ## 0.5.0 — 2026-10-24
 
 - Neuer kompakter Bereich „Bewässerungsregeln“ für automatisch ausgewählte Zonen: Defizitschwelle, Mindestabstand mit Herkunft Zone/Global, Bodenfeuchte-Sperre und Laufzeitlimit.

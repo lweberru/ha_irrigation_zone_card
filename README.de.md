@@ -1,6 +1,6 @@
 # Irrigation Zone Card
 
-[English](README.md) | **Deutsch**
+[English](README.md) | **Deutsch** | [Nederlands](README.nl.md)
 
 Eine Home-Assistant-Dashboardkarte für **eine Smart-Irrigation-Zone**. Bodenfeuchte als Ring, Wasserbilanz mit Nullpunkt, berechnete Bewässerungsdauer und Wasserverbrauch in einer ruhigen, kompakten Gartenoptik. Optional mit manuellem Zonenventil (`switch.*` oder `valve.*`).
 
@@ -61,7 +61,7 @@ Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung au
 
 | Feld | Standard | Bedeutung |
 | --- | --- | --- |
-| `name` | `Bewässerung` / `Irrigation` | Titel |
+| `name` | `Bewässerung` / `Irrigation` / `Beregening` | Titel |
 | `icon` | `mdi:sprinkler-variant` | Symbol |
 | `automation_entity` | optional | Eigene `automation.*`; Zustand und Aktivieren/Pausieren |
 | `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und HA-Detaildialog |
@@ -70,7 +70,7 @@ Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung au
 | `precipitation_switch_entity` | automatisch | `switch.*` für die Regenprognose-Sperre |
 | `precipitation_threshold_entity` | automatisch | `number.*` für die Regengrenze |
 | `show_actions` | `true` | Direkte Service-Schaltflächen anzeigen; HA-Detaildialoge bleiben erreichbar |
-| `language` | `auto` | `auto`, `de`, `en` |
+| `language` | `auto` | `auto`, `en`, `de`, `nl` |
 
 Voraussetzung sind die Smart-Irrigation-Endpunkte `smart_irrigation/info`, `smart_irrigation/config` und `smart_irrigation/zones` sowie Zugriff auf das Entity-Registry. Geprüft mit v2026.10.8. Die Karte lädt die Planung bei Integrationsänderungen, relevanten Zustandsänderungen, Wiederverbindung und einmal pro Minute nach, solange sie angezeigt wird. Mehrere zentrale Karten teilen sich die Planungsabfragen; mit den Zonenkarten teilen sie sich die Zonen-/Registry-Abfragen. Abonnements und Timer werden beim Entfernen aufgeräumt.
 
@@ -151,7 +151,7 @@ Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlä
 | `confirm_open` | `true` | Bestätigung vor manuellem Öffnen |
 | `bucket_min` | negatives Skalenmaximum | Linkes Skalenende, kleiner als 0 |
 | `bucket_max` | `maximum_bucket` am Dauersensor, sonst `25` | Rechtes Skalenende, größer als 0, in der Einheit der Wasserbilanz |
-| `language` | `auto` | `auto`, `de` oder `en`; andere HA-Sprachen erhalten englische Texte |
+| `language` | `auto` | `auto`, `en`, `de` oder `nl`; andere HA-Sprachen erhalten englische Texte |
 
 Zahlen verwenden die Home-Assistant-Benutzersprache. Helle/dunkle Themes und reduzierte Bewegung werden berücksichtigt. In Sections-Ansichten belegt die Karte standardmäßig 12 Spalten und automatische Höhe; die Breite ist über das HA-Layout anpassbar. Dauer, Verbrauch, Bodenfeuchte und angewandte ET öffnen per Klick ihren HA-Detaildialog. Die Wasserbilanz ist über Wert oder Skala anklickbar; ein Diagrammsymbol weist auf den verfügbaren Verlauf hin. Der Verlauf im nativen HA-Sensordialog hängt von den gespeicherten Recorder-Daten ab. Die Karte führt keinen eigenen Verlaufsspeicher und ändert keine Recorder-Einstellungen. Die Wasserbilanz lässt sich auch per Tastatur (Enter/Leertaste) öffnen.
 
@@ -209,6 +209,10 @@ Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, m
 Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 24 Logiktests und 23 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
+
+### Eine Sprache hinzufügen
+
+Alle Texte liegen in `src/i18n/`, eine Datei pro Sprache. Für eine neue Sprache `src/i18n/en.js` nach `src/i18n/<code>.js` kopieren, die Werte übersetzen (Schlüssel bleiben gleich) und die Datei in `src/i18n/index.js` eintragen. Die Sprache erscheint dann in beiden Editoren und wird als `language` akzeptiert. Fehlende Texte fallen auf Englisch zurück; `npm test` prüft, dass jede Sprache dieselben Schlüssel wie Englisch hat.
 
 ## Referenzen
 

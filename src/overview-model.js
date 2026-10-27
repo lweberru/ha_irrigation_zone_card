@@ -1,4 +1,5 @@
 import { numeric } from './model.js';
+import { languageCodes } from './i18n/index.js';
 
 export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity'];
 const globalRoles = {
@@ -15,7 +16,7 @@ export function validateOverviewConfig(config) {
     const domains = key === 'automation_entity' ? ['automation'] : key === 'main_valve_entity' ? ['switch','valve'] : [globalRoles[key][0]];
     if (!domains.includes(config[key].split('.')[0])) throw new Error(`${key}: expected ${domains.join(' or ')}.`);
   }
-  if (config.language !== undefined && !['auto','de','en'].includes(config.language)) throw new Error('language must be auto, de or en.');
+  if (config.language !== undefined && !languageCodes.includes(config.language)) throw new Error(`language must be one of: ${languageCodes.join(', ')}.`);
   for (const key of ['name','icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
   if (config.show_actions !== undefined && typeof config.show_actions !== 'boolean') throw new Error('show_actions must be a boolean.');
   return {show_actions:true,...config};
