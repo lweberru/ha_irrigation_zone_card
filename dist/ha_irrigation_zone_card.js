@@ -53,6 +53,570 @@ function watchOverview(hass, callback) {
   } };
 }
 
+// src/i18n/en.js
+var en_default = {
+  card: {
+    zone: "Irrigation zone",
+    watering: "Valve active",
+    needed: "Irrigation needed",
+    balanced: "No irrigation needed",
+    unknown: "Water demand unknown",
+    moisture: "Soil moisture",
+    balance: "Water balance \xB7 live",
+    reserve: "Water reserve",
+    deficit: "Water deficit",
+    neutral: "Balanced",
+    duration: "Calculated duration",
+    used: "Water used",
+    valve: "Zone valve",
+    open: "Open",
+    close: "Close",
+    opening: "Opening \u2026",
+    closing: "Closing \u2026",
+    on: "Open",
+    off: "Closed",
+    unavailable: "Unavailable",
+    pending: "Sending \u2026",
+    confirm: "Open valve manually? It stays open until closed. The calculated duration does not start a timer.",
+    manual: "Manual \xB7 no shutoff timer",
+    failed: "Could not control the valve.",
+    missing: "Unavailable",
+    details: "Open zone details",
+    noData: "The configured sensors have no readings yet.",
+    sharedValve: "Shared valve",
+    loading: "Loading zone \u2026",
+    zoneMissing: "The selected Smart Irrigation zone was not found.",
+    discoveryFailed: "Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.",
+    autoMissing: "Sensors not discovered (assign manually if needed)",
+    balanceHistory: "Open water balance and history",
+    et: "Applied ET",
+    etDescription: "Last applied ET value from Smart Irrigation; not a live counter.",
+    problem: "Zone problem reported",
+    problemUnknown: "Problem status unknown",
+    problemUnknownDetail: "The problem sensor is unavailable or was not found.",
+    problemDetail: "Check the problem sensor for details.",
+    problemReasons: {
+      valve_did_not_open: "Valve did not open",
+      valve_did_not_close: "Valve did not close",
+      no_flow: "No flow detected"
+    }
+  },
+  rules: {
+    title: "Irrigation rules",
+    threshold: "Deficit threshold",
+    thresholdHint: "Configured start threshold \xB7 not a water balance target",
+    interval: "Minimum interval",
+    day: "day",
+    days: "days",
+    own: "Zone",
+    global: "Global",
+    moisture: "Soil moisture hold",
+    noSensor: "No sensor",
+    at: "from",
+    limit: "Runtime limit",
+    unlimited: "No limit",
+    intervalHeld: "Minimum interval not yet reached",
+    moistureHeld: "Soil moisture is holding this zone",
+    globalHeld: "A central protection check is holding the start",
+    unknown: "Current protection preview unavailable",
+    source: "Configured values \xB7 edit in Smart Irrigation"
+  },
+  editor: {
+    entity: "Calculated duration (Smart Irrigation)",
+    name: "Zone name",
+    icon: "Icon",
+    irrigation_needed_entity: "Irrigation needed",
+    bucket_entity: "Water balance (live)",
+    water_used_entity: "Water used",
+    moisture_entity: "Soil moisture",
+    valve_entity: "Valve (optional)",
+    bucket_min: "Water balance: scale minimum (< 0)",
+    bucket_max: "Water balance: scale maximum (> 0)",
+    show_control: "Show manual valve control",
+    confirm_open: "Confirm before opening manually",
+    language: "Language",
+    show_rules: "Show irrigation rules",
+    zone: "Smart Irrigation zone",
+    overrides: "Override sensors (optional)",
+    et_entity: "Applied ET",
+    problem_entity: "Zone problem",
+    manual: "Configure manually",
+    discoveryFailed: "Automatic discovery unavailable. You can configure entities manually.",
+    discoveryHint: "The zone automatically assigns sensors, soil moisture and the linked valve. Changing zones clears sensor overrides and the name."
+  },
+  overview: {
+    title: "Irrigation",
+    eyebrow: "Smart Irrigation \xB7 Overview",
+    unknown: "Status unknown",
+    running: "Irrigation active",
+    paused: "Automation paused",
+    blocked: "Irrigation deferred",
+    noDemand: "No demand planned",
+    scheduled: "Start armed",
+    demand: "Water demand detected",
+    planning: "Next planned start",
+    notArmed: "Start not armed",
+    armed: "Start armed",
+    noStart: "No start trigger selected",
+    duration: "Total demand",
+    estimated: "Forecast",
+    calculated: "Calculated",
+    zones: "Zones needing water",
+    of: "of",
+    forecast: "Rain forecast",
+    threshold: "Rain threshold",
+    window: "Window",
+    hours: "h",
+    rainProtection: "Forecast rain protection",
+    freeze: "Frost protection",
+    rain_sensor: "Rain sensor",
+    wind: "Wind protection",
+    precipitation: "Rain forecast",
+    soil_moisture: "Soil moisture",
+    days_between: "Watering interval",
+    postponed: "Postponed",
+    clear: "Clear",
+    held: "Blocking",
+    unavailable: "Unavailable",
+    disabled: "Disabled",
+    active: "Active",
+    inactive: "Off",
+    limit: "Limit",
+    heldZones: "zones deferred",
+    checks: "Protection & skip conditions",
+    weather: "Weather source",
+    calculation: "Automatic calculation",
+    automatic: "Enabled",
+    manual: "Off",
+    calculate: "Calculate all",
+    update: "Update weather",
+    automation: "Irrigation automation",
+    enable: "Enable",
+    pause: "Pause",
+    disable: "Disable",
+    mainValve: "Main valve",
+    on: "Open",
+    off: "Closed",
+    opening: "Opening",
+    closing: "Closing",
+    refresh: "Reload planning",
+    sending: "Sending \u2026",
+    error: "Action failed.",
+    offline: "Central data unavailable. Check the connection and Smart Irrigation.",
+    loading: "Loading planning \u2026",
+    stale: "Smart Irrigation reports stale zone data.",
+    external: "Valves are controlled by external automations.",
+    direct: "Smart Irrigation controls valves directly.",
+    forecastNote: "Integration planning preview; demand and skip conditions may change before the start.",
+    noChecks: "No active protection checks reported.",
+    missing: "Configured entity unavailable",
+    day: "days",
+    freezeOff: "Frost protection is disabled in Smart Irrigation.",
+    freezeUnknown: "No valid temperature reading available.",
+    at: "at",
+    freezeLimit: "Frost threshold",
+    noFreeze: "No frost restriction",
+    freezeBlocked: "Frost protection blocking",
+    pendingCheck: "Check not reported"
+  },
+  overviewEditor: {
+    name: "Title",
+    icon: "Icon",
+    language: "Language",
+    show_actions: "Show central actions",
+    automation_entity: "External irrigation automation (optional)",
+    main_valve_entity: "Main valve (optional, status and details)",
+    calculate_entity: "Calculate all (auto-discovered)",
+    update_weather_entity: "Update weather (auto-discovered)",
+    precipitation_switch_entity: "Forecast rain protection (auto-discovered)",
+    precipitation_threshold_entity: "Rain threshold (auto-discovered)"
+  }
+};
+
+// src/i18n/de.js
+var de_default = {
+  card: {
+    zone: "Bew\xE4sserungszone",
+    watering: "Ventil aktiv",
+    needed: "Bew\xE4sserung n\xF6tig",
+    balanced: "Kein Wasserbedarf",
+    unknown: "Wasserbedarf unbekannt",
+    moisture: "Bodenfeuchte",
+    balance: "Wasserbilanz \xB7 live",
+    reserve: "Wasservorrat",
+    deficit: "Wasserdefizit",
+    neutral: "Ausgeglichen",
+    duration: "Berechnete Dauer",
+    used: "Wasserverbrauch",
+    valve: "Zonenventil",
+    open: "\xD6ffnen",
+    close: "Schlie\xDFen",
+    opening: "\xD6ffnet \u2026",
+    closing: "Schlie\xDFt \u2026",
+    on: "Ge\xF6ffnet",
+    off: "Geschlossen",
+    unavailable: "Nicht verf\xFCgbar",
+    pending: "Wird gesendet \u2026",
+    confirm: "Ventil manuell \xF6ffnen? Es bleibt ge\xF6ffnet, bis es geschlossen wird. Die berechnete Dauer startet keinen Timer.",
+    manual: "Manuell \xB7 ohne Abschalttimer",
+    failed: "Ventil konnte nicht geschaltet werden.",
+    missing: "Nicht verf\xFCgbar",
+    details: "Zonendetails \xF6ffnen",
+    noData: "Die konfigurierten Sensoren liefern noch keine Werte.",
+    sharedValve: "Gemeinsames Ventil",
+    loading: "Zone wird geladen \u2026",
+    zoneMissing: "Die ausgew\xE4hlte Smart-Irrigation-Zone wurde nicht gefunden.",
+    discoveryFailed: "Automatische Zuordnung nicht verf\xFCgbar. Verbindung und Smart-Irrigation-Integration pr\xFCfen oder Entit\xE4ten manuell eintragen.",
+    autoMissing: "Sensoren nicht automatisch gefunden (optional manuell zuweisen)",
+    balanceHistory: "Wasserbilanz und Verlauf \xF6ffnen",
+    et: "Angewandte ET",
+    etDescription: "Zuletzt angewandter ET-Wert aus Smart Irrigation; kein Live-Z\xE4hler.",
+    problem: "Zonenproblem gemeldet",
+    problemUnknown: "Problemstatus unbekannt",
+    problemUnknownDetail: "Der Problemsensor ist nicht verf\xFCgbar oder wurde nicht gefunden.",
+    problemDetail: "Details im Problemsensor pr\xFCfen.",
+    problemReasons: {
+      valve_did_not_open: "Ventil hat nicht ge\xF6ffnet",
+      valve_did_not_close: "Ventil hat nicht geschlossen",
+      no_flow: "Kein Durchfluss erkannt"
+    }
+  },
+  rules: {
+    title: "Bew\xE4sserungsregeln",
+    threshold: "Defizitschwelle",
+    thresholdHint: "Konfigurierte Startschwelle \xB7 kein Zielwert der Wasserbilanz",
+    interval: "Mindestabstand",
+    day: "Tag",
+    days: "Tage",
+    own: "Zone",
+    global: "Global",
+    moisture: "Bodenfeuchte-Sperre",
+    noSensor: "Kein Sensor",
+    at: "ab",
+    limit: "Laufzeitlimit",
+    unlimited: "Ohne Limit",
+    intervalHeld: "Mindestabstand noch nicht erreicht",
+    moistureHeld: "Bodenfeuchte h\xE4lt die Zone zur\xFCck",
+    globalHeld: "Zentrale Schutzpr\xFCfung h\xE4lt den Start zur\xFCck",
+    unknown: "Aktuelle Schutzpr\xFCfung nicht verf\xFCgbar",
+    source: "Konfigurierte Werte \xB7 \xC4nderungen in Smart Irrigation"
+  },
+  editor: {
+    entity: "Berechnete Dauer (Smart Irrigation)",
+    name: "Zonenname",
+    icon: "Symbol",
+    irrigation_needed_entity: "Bew\xE4sserung n\xF6tig",
+    bucket_entity: "Wasserbilanz (live)",
+    water_used_entity: "Wasserverbrauch",
+    moisture_entity: "Bodenfeuchte",
+    valve_entity: "Ventil (optional)",
+    bucket_min: "Wasserbilanz: Skalenminimum (< 0)",
+    bucket_max: "Wasserbilanz: Skalenmaximum (> 0)",
+    show_control: "Manuelle Ventilsteuerung anzeigen",
+    confirm_open: "Vor manuellem \xD6ffnen best\xE4tigen",
+    language: "Sprache",
+    show_rules: "Bew\xE4sserungsregeln anzeigen",
+    zone: "Smart-Irrigation-Zone",
+    overrides: "Sensoren \xFCberschreiben (optional)",
+    et_entity: "Angewandte ET",
+    problem_entity: "Zonenproblem",
+    manual: "Manuell konfigurieren",
+    discoveryFailed: "Automatische Zuordnung nicht verf\xFCgbar. Entit\xE4ten k\xF6nnen manuell eingetragen werden.",
+    discoveryHint: "Die Zone ordnet Sensoren, Bodenfeuchte und verkn\xFCpftes Ventil automatisch zu. Ein Zonenwechsel setzt manuelle Sensorzuordnungen und den Namen zur\xFCck."
+  },
+  overview: {
+    title: "Bew\xE4sserung",
+    eyebrow: "Smart Irrigation \xB7 Zentrale",
+    unknown: "Status unbekannt",
+    running: "Bew\xE4sserung aktiv",
+    paused: "Automatik pausiert",
+    blocked: "Bew\xE4sserung zur\xFCckgestellt",
+    noDemand: "Kein Bedarf eingeplant",
+    scheduled: "Start vorgemerkt",
+    demand: "Wasserbedarf vorhanden",
+    planning: "N\xE4chster Planzeitpunkt",
+    notArmed: "Start nicht vorgemerkt",
+    armed: "Start vorgemerkt",
+    noStart: "Kein Startzeitpunkt gew\xE4hlt",
+    duration: "Gesamtbedarf",
+    estimated: "Prognose",
+    calculated: "Berechnet",
+    zones: "Zonen mit Bedarf",
+    of: "von",
+    forecast: "Regenprognose",
+    threshold: "Regengrenze",
+    window: "Zeitraum",
+    hours: "h",
+    rainProtection: "Regenprognose-Sperre",
+    freeze: "Frostschutz",
+    rain_sensor: "Regensensor",
+    wind: "Windschutz",
+    precipitation: "Regenprognose",
+    soil_moisture: "Bodenfeuchte",
+    days_between: "Bew\xE4sserungsabstand",
+    postponed: "Aufschub",
+    clear: "Freigegeben",
+    held: "Sperrt",
+    unavailable: "Nicht verf\xFCgbar",
+    disabled: "Ausgeschaltet",
+    active: "Aktiv",
+    inactive: "Aus",
+    limit: "Grenze",
+    heldZones: "Zonen zur\xFCckgestellt",
+    checks: "Schutz & Sperrgr\xFCnde",
+    weather: "Wetterquelle",
+    calculation: "Automatische Berechnung",
+    automatic: "Aktiv",
+    manual: "Aus",
+    calculate: "Alle berechnen",
+    update: "Wetter aktualisieren",
+    automation: "Bew\xE4sserungsautomatik",
+    enable: "Aktivieren",
+    pause: "Pausieren",
+    disable: "Deaktivieren",
+    mainValve: "Hauptventil",
+    on: "Ge\xF6ffnet",
+    off: "Geschlossen",
+    opening: "\xD6ffnet",
+    closing: "Schlie\xDFt",
+    refresh: "Planung neu laden",
+    sending: "Wird gesendet \u2026",
+    error: "Aktion fehlgeschlagen.",
+    offline: "Zentrale Daten nicht verf\xFCgbar. Verbindung und Smart Irrigation pr\xFCfen.",
+    loading: "Planung wird geladen \u2026",
+    stale: "Smart Irrigation meldet veraltete Zonendaten.",
+    external: "Ventile werden \xFCber eigene Automationen gesteuert.",
+    direct: "Direkte Ventilsteuerung durch Smart Irrigation.",
+    forecastNote: "Vorschau der Integrationsplanung; Bedarf und Sperren k\xF6nnen sich bis zum Start \xE4ndern.",
+    noChecks: "Keine aktiven Schutzpr\xFCfungen gemeldet.",
+    missing: "Konfigurierte Entit\xE4t nicht verf\xFCgbar",
+    day: "Tage",
+    freezeOff: "Der Frostschutz ist in Smart Irrigation ausgeschaltet.",
+    freezeUnknown: "Kein g\xFCltiger Temperaturwert verf\xFCgbar.",
+    at: "um",
+    freezeLimit: "Frostgrenze",
+    noFreeze: "Kein Frosthindernis",
+    freezeBlocked: "Frostsperre aktiv",
+    pendingCheck: "Pr\xFCfung nicht gemeldet"
+  },
+  overviewEditor: {
+    name: "Titel",
+    icon: "Symbol",
+    language: "Sprache",
+    show_actions: "Zentrale Aktionen anzeigen",
+    automation_entity: "Eigene Bew\xE4sserungsautomation (optional)",
+    main_valve_entity: "Hauptventil (optional, Status und Details)",
+    calculate_entity: "Alle berechnen (automatisch erkannt)",
+    update_weather_entity: "Wetter aktualisieren (automatisch erkannt)",
+    precipitation_switch_entity: "Regenprognose-Sperre (automatisch erkannt)",
+    precipitation_threshold_entity: "Regenschwelle (automatisch erkannt)"
+  }
+};
+
+// src/i18n/nl.js
+var nl_default = {
+  card: {
+    zone: "Beregeningszone",
+    watering: "Klep actief",
+    needed: "Beregening nodig",
+    balanced: "Geen waterbehoefte",
+    unknown: "Waterbehoefte onbekend",
+    moisture: "Bodemvocht",
+    balance: "Waterbalans \xB7 live",
+    reserve: "Watervoorraad",
+    deficit: "Watertekort",
+    neutral: "In balans",
+    duration: "Berekende duur",
+    used: "Waterverbruik",
+    valve: "Zoneklep",
+    open: "Openen",
+    close: "Sluiten",
+    opening: "Opent \u2026",
+    closing: "Sluit \u2026",
+    on: "Open",
+    off: "Dicht",
+    unavailable: "Niet beschikbaar",
+    pending: "Wordt verzonden \u2026",
+    confirm: "Klep handmatig openen? Hij blijft open totdat hij wordt gesloten. De berekende duur start geen timer.",
+    manual: "Handmatig \xB7 zonder uitschakeltimer",
+    failed: "De klep kon niet worden geschakeld.",
+    missing: "Niet beschikbaar",
+    details: "Zonedetails openen",
+    noData: "De ingestelde sensoren leveren nog geen waarden.",
+    sharedValve: "Gedeelde klep",
+    loading: "Zone wordt geladen \u2026",
+    zoneMissing: "De gekozen Smart Irrigation-zone is niet gevonden.",
+    discoveryFailed: "Automatisch koppelen niet beschikbaar. Controleer de verbinding en de Smart Irrigation-integratie of stel entiteiten handmatig in.",
+    autoMissing: "Sensoren niet automatisch gevonden (eventueel handmatig toewijzen)",
+    balanceHistory: "Waterbalans en geschiedenis openen",
+    et: "Toegepaste ET",
+    etDescription: "Laatst toegepaste ET-waarde uit Smart Irrigation; geen live teller.",
+    problem: "Zoneprobleem gemeld",
+    problemUnknown: "Probleemstatus onbekend",
+    problemUnknownDetail: "De probleemsensor is niet beschikbaar of niet gevonden.",
+    problemDetail: "Bekijk de probleemsensor voor details.",
+    problemReasons: {
+      valve_did_not_open: "Klep is niet geopend",
+      valve_did_not_close: "Klep is niet gesloten",
+      no_flow: "Geen doorstroming gedetecteerd"
+    }
+  },
+  rules: {
+    title: "Beregeningsregels",
+    threshold: "Tekortdrempel",
+    thresholdHint: "Ingestelde startdrempel \xB7 geen doelwaarde voor de waterbalans",
+    interval: "Minimale tussenpoos",
+    day: "dag",
+    days: "dagen",
+    own: "Zone",
+    global: "Globaal",
+    moisture: "Bodemvochtblokkade",
+    noSensor: "Geen sensor",
+    at: "vanaf",
+    limit: "Maximale looptijd",
+    unlimited: "Geen limiet",
+    intervalHeld: "Minimale tussenpoos nog niet bereikt",
+    moistureHeld: "Bodemvocht houdt deze zone tegen",
+    globalHeld: "Een centrale beveiligingscontrole houdt de start tegen",
+    unknown: "Actuele beveiligingscontrole niet beschikbaar",
+    source: "Ingestelde waarden \xB7 wijzigen in Smart Irrigation"
+  },
+  editor: {
+    entity: "Berekende duur (Smart Irrigation)",
+    name: "Zonenaam",
+    icon: "Pictogram",
+    irrigation_needed_entity: "Beregening nodig",
+    bucket_entity: "Waterbalans (live)",
+    water_used_entity: "Waterverbruik",
+    moisture_entity: "Bodemvocht",
+    valve_entity: "Klep (optioneel)",
+    bucket_min: "Waterbalans: schaalminimum (< 0)",
+    bucket_max: "Waterbalans: schaalmaximum (> 0)",
+    show_control: "Handmatige klepbediening tonen",
+    confirm_open: "Bevestigen voor handmatig openen",
+    language: "Taal",
+    show_rules: "Beregeningsregels tonen",
+    zone: "Smart Irrigation-zone",
+    overrides: "Sensoren overschrijven (optioneel)",
+    et_entity: "Toegepaste ET",
+    problem_entity: "Zoneprobleem",
+    manual: "Handmatig instellen",
+    discoveryFailed: "Automatisch koppelen niet beschikbaar. Entiteiten kunnen handmatig worden ingesteld.",
+    discoveryHint: "De zone koppelt sensoren, bodemvocht en de bijbehorende klep automatisch. Bij het wisselen van zone worden handmatige sensorkoppelingen en de naam gewist."
+  },
+  overview: {
+    title: "Beregening",
+    eyebrow: "Smart Irrigation \xB7 Overzicht",
+    unknown: "Status onbekend",
+    running: "Beregening actief",
+    paused: "Automatisering gepauzeerd",
+    blocked: "Beregening uitgesteld",
+    noDemand: "Geen behoefte gepland",
+    scheduled: "Start ingepland",
+    demand: "Waterbehoefte aanwezig",
+    planning: "Volgend planmoment",
+    notArmed: "Start niet ingepland",
+    armed: "Start ingepland",
+    noStart: "Geen starttijdstip gekozen",
+    duration: "Totale behoefte",
+    estimated: "Prognose",
+    calculated: "Berekend",
+    zones: "Zones met behoefte",
+    of: "van",
+    forecast: "Regenverwachting",
+    threshold: "Regengrens",
+    window: "Periode",
+    hours: "u",
+    rainProtection: "Blokkade bij regenverwachting",
+    freeze: "Vorstbeveiliging",
+    rain_sensor: "Regensensor",
+    wind: "Windbeveiliging",
+    precipitation: "Regenverwachting",
+    soil_moisture: "Bodemvocht",
+    days_between: "Beregeningsinterval",
+    postponed: "Uitstel",
+    clear: "Vrijgegeven",
+    held: "Blokkeert",
+    unavailable: "Niet beschikbaar",
+    disabled: "Uitgeschakeld",
+    active: "Actief",
+    inactive: "Uit",
+    limit: "Grens",
+    heldZones: "zones uitgesteld",
+    checks: "Beveiliging & blokkades",
+    weather: "Weerbron",
+    calculation: "Automatische berekening",
+    automatic: "Actief",
+    manual: "Uit",
+    calculate: "Alles berekenen",
+    update: "Weer bijwerken",
+    automation: "Beregeningsautomatisering",
+    enable: "Inschakelen",
+    pause: "Pauzeren",
+    disable: "Uitschakelen",
+    mainValve: "Hoofdklep",
+    on: "Open",
+    off: "Dicht",
+    opening: "Opent",
+    closing: "Sluit",
+    refresh: "Planning opnieuw laden",
+    sending: "Wordt verzonden \u2026",
+    error: "Actie mislukt.",
+    offline: "Centrale gegevens niet beschikbaar. Controleer de verbinding en Smart Irrigation.",
+    loading: "Planning wordt geladen \u2026",
+    stale: "Smart Irrigation meldt verouderde zonegegevens.",
+    external: "Kleppen worden via eigen automatiseringen aangestuurd.",
+    direct: "Smart Irrigation stuurt de kleppen direct aan.",
+    forecastNote: "Voorbeeld van de planning van de integratie; behoefte en blokkades kunnen tot de start nog veranderen.",
+    noChecks: "Geen actieve beveiligingscontroles gemeld.",
+    missing: "Ingestelde entiteit niet beschikbaar",
+    day: "dagen",
+    freezeOff: "De vorstbeveiliging is uitgeschakeld in Smart Irrigation.",
+    freezeUnknown: "Geen geldige temperatuurwaarde beschikbaar.",
+    at: "om",
+    freezeLimit: "Vorstgrens",
+    noFreeze: "Geen vorstbeperking",
+    freezeBlocked: "Vorstblokkade actief",
+    pendingCheck: "Controle niet gemeld"
+  },
+  overviewEditor: {
+    name: "Titel",
+    icon: "Pictogram",
+    language: "Taal",
+    show_actions: "Centrale acties tonen",
+    automation_entity: "Eigen beregeningsautomatisering (optioneel)",
+    main_valve_entity: "Hoofdklep (optioneel, status en details)",
+    calculate_entity: "Alles berekenen (automatisch gevonden)",
+    update_weather_entity: "Weer bijwerken (automatisch gevonden)",
+    precipitation_switch_entity: "Blokkade bij regenverwachting (automatisch gevonden)",
+    precipitation_threshold_entity: "Regengrens (automatisch gevonden)"
+  }
+};
+
+// src/i18n/index.js
+var languages = {
+  en: { name: "English", strings: en_default },
+  de: { name: "Deutsch", strings: de_default },
+  nl: { name: "Nederlands", strings: nl_default }
+};
+var languageCodes = ["auto", ...Object.keys(languages)];
+var languageOptions = [
+  { value: "auto", label: "Auto" },
+  ...Object.entries(languages).map(([value, { name }]) => ({ value, label: name }))
+];
+function resolveLanguage(configured, hass) {
+  const lang = configured && configured !== "auto" ? configured : hass?.language;
+  const base = String(lang || "").toLowerCase().split(/[-_]/)[0];
+  return Object.hasOwn(languages, base) ? base : "en";
+}
+var merge = (fallback, own = {}) => Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, value && typeof value === "object" ? merge(value, own[key]) : own[key] ?? value]));
+var cache = /* @__PURE__ */ new Map();
+function translate(lang, section) {
+  const id = `${lang}:${section}`;
+  if (!cache.has(id)) cache.set(id, merge(en_default[section], languages[lang]?.strings[section]));
+  return cache.get(id);
+}
+
 // src/model.js
 var entityKeys = ["entity", "irrigation_needed_entity", "bucket_entity", "water_used_entity", "moisture_entity", "valve_entity", "et_entity", "problem_entity"];
 function numeric(value) {
@@ -89,7 +653,7 @@ function validateConfig(config) {
   for (const key of ["show_control", "confirm_open", "show_rules"]) {
     if (config[key] !== void 0 && typeof config[key] !== "boolean") throw new Error(`${key} must be a boolean.`);
   }
-  if (config.language !== void 0 && !["auto", "de", "en"].includes(config.language)) throw new Error("language must be auto, de or en.");
+  if (config.language !== void 0 && !languageCodes.includes(config.language)) throw new Error(`language must be one of: ${languageCodes.join(", ")}.`);
   for (const key of ["name", "icon"]) if (config[key] !== void 0 && typeof config[key] !== "string") throw new Error(`${key} must be a string.`);
   return { show_control: true, confirm_open: true, show_rules: true, ...config };
 }
@@ -180,10 +744,6 @@ function zoneRules(config, discovery, system) {
     checksKnown: !!checks?.length && !system?.error && checks.every((item) => item.enabled !== true || item.available === true)
   };
 }
-var ruleLabels = {
-  de: { title: "Bew\xE4sserungsregeln", threshold: "Defizitschwelle", thresholdHint: "Konfigurierte Startschwelle \xB7 kein Zielwert der Wasserbilanz", interval: "Mindestabstand", day: "Tag", days: "Tage", own: "Zone", global: "Global", moisture: "Bodenfeuchte-Sperre", noSensor: "Kein Sensor", at: "ab", limit: "Laufzeitlimit", unlimited: "Ohne Limit", intervalHeld: "Mindestabstand noch nicht erreicht", moistureHeld: "Bodenfeuchte h\xE4lt die Zone zur\xFCck", globalHeld: "Zentrale Schutzpr\xFCfung h\xE4lt den Start zur\xFCck", unknown: "Aktuelle Schutzpr\xFCfung nicht verf\xFCgbar", source: "Konfigurierte Werte \xB7 \xC4nderungen in Smart Irrigation" },
-  en: { title: "Irrigation rules", threshold: "Deficit threshold", thresholdHint: "Configured start threshold \xB7 not a water balance target", interval: "Minimum interval", day: "day", days: "days", own: "Zone", global: "Global", moisture: "Soil moisture hold", noSensor: "No sensor", at: "from", limit: "Runtime limit", unlimited: "No limit", intervalHeld: "Minimum interval not yet reached", moistureHeld: "Soil moisture is holding this zone", globalHeld: "A central protection check is holding the start", unknown: "Current protection preview unavailable", source: "Configured values \xB7 edit in Smart Irrigation" }
-};
 
 // src/styles.js
 var styles = `
@@ -368,12 +928,6 @@ function sameEntities(a, b) {
 }
 
 // src/editor.js
-var labels = {
-  de: { entity: "Berechnete Dauer (Smart Irrigation)", name: "Zonenname", icon: "Symbol", irrigation_needed_entity: "Bew\xE4sserung n\xF6tig", bucket_entity: "Wasserbilanz (live)", water_used_entity: "Wasserverbrauch", moisture_entity: "Bodenfeuchte", valve_entity: "Ventil (optional)", bucket_min: "Wasserbilanz: Skalenminimum (< 0)", bucket_max: "Wasserbilanz: Skalenmaximum (> 0)", show_control: "Manuelle Ventilsteuerung anzeigen", confirm_open: "Vor manuellem \xD6ffnen best\xE4tigen", language: "Sprache" },
-  en: { entity: "Calculated duration (Smart Irrigation)", name: "Zone name", icon: "Icon", irrigation_needed_entity: "Irrigation needed", bucket_entity: "Water balance (live)", water_used_entity: "Water used", moisture_entity: "Soil moisture", valve_entity: "Valve (optional)", bucket_min: "Water balance: scale minimum (< 0)", bucket_max: "Water balance: scale maximum (> 0)", show_control: "Show manual valve control", confirm_open: "Confirm before opening manually", language: "Language" }
-};
-Object.assign(labels.de, { show_rules: "Bew\xE4sserungsregeln anzeigen", zone: "Smart-Irrigation-Zone", overrides: "Sensoren \xFCberschreiben (optional)", et_entity: "Angewandte ET", problem_entity: "Zonenproblem" });
-Object.assign(labels.en, { show_rules: "Show irrigation rules", zone: "Smart Irrigation zone", overrides: "Override sensors (optional)", et_entity: "Applied ET", problem_entity: "Zone problem" });
 var IrrigationZoneEditor = class extends HTMLElement {
   constructor() {
     super();
@@ -430,11 +984,10 @@ var IrrigationZoneEditor = class extends HTMLElement {
       this._form.addEventListener("value-changed", onChange);
       this._overrides.addEventListener("value-changed", onChange);
     }
-    const lang = this._config.language && this._config.language !== "auto" ? this._config.language : this._hass.language;
-    const de = lang?.startsWith("de");
-    const label = (schema) => labels[de ? "de" : "en"][schema.name] || schema.name;
+    const t = translate(resolveLanguage(this._config.language, this._hass), "editor");
+    const label = (schema) => t[schema.name] || schema.name;
     const zones = this._discovery?.zones || [];
-    const options = [{ value: "", label: de ? "Manuell konfigurieren" : "Configure manually" }, ...zones.map((zone) => ({ value: String(zone.id), label: `${zone.name} (${zone.id})` }))];
+    const options = [{ value: "", label: t.manual }, ...zones.map((zone) => ({ value: String(zone.id), label: `${zone.name} (${zone.id})` }))];
     if (hasZone(this._config) && !zones.some((zone) => String(zone.id) === String(this._config.zone))) options.push({ value: String(this._config.zone), label: `Zone ${this._config.zone}` });
     this._form.schema = [
       { name: "zone", selector: { select: { options } } },
@@ -443,7 +996,7 @@ var IrrigationZoneEditor = class extends HTMLElement {
       { name: "show_rules", selector: { boolean: {} } },
       { name: "show_control", selector: { boolean: {} } },
       { name: "confirm_open", selector: { boolean: {} } },
-      { name: "language", selector: { select: { options: [{ value: "auto", label: "Auto" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } }
+      { name: "language", selector: { select: { options: languageOptions } } }
     ];
     this._overrides.schema = [
       ...entityKeys.map((name) => ({ name, required: name === "entity" && !hasZone(this._config), selector: { entity: { domain: name === "valve_entity" ? ["switch", "valve"] : ["irrigation_needed_entity", "problem_entity"].includes(name) ? "binary_sensor" : "sensor" } } })),
@@ -457,7 +1010,7 @@ var IrrigationZoneEditor = class extends HTMLElement {
     }
     this.shadowRoot.querySelector("summary").textContent = label({ name: "overrides" });
     if (!hasZone(this._config)) this.shadowRoot.querySelector("details").open = true;
-    this.shadowRoot.querySelector(".notice").textContent = this._discovery?.error ? de ? "Automatische Zuordnung nicht verf\xFCgbar. Entit\xE4ten k\xF6nnen manuell eingetragen werden." : "Automatic discovery unavailable. You can configure entities manually." : de ? "Die Zone ordnet Sensoren, Bodenfeuchte und verkn\xFCpftes Ventil automatisch zu. Ein Zonenwechsel setzt manuelle Sensorzuordnungen und den Namen zur\xFCck." : "The zone automatically assigns sensors, soil moisture and the linked valve. Changing zones clears sensor overrides and the name.";
+    this.shadowRoot.querySelector(".notice").textContent = this._discovery?.error ? t.discoveryFailed : t.discoveryHint;
   }
 };
 if (!customElements.get("irrigation-zone-card-editor")) customElements.define("irrigation-zone-card-editor", IrrigationZoneEditor);
@@ -478,7 +1031,7 @@ function validateOverviewConfig(config) {
     const domains = key === "automation_entity" ? ["automation"] : key === "main_valve_entity" ? ["switch", "valve"] : [globalRoles[key][0]];
     if (!domains.includes(config[key].split(".")[0])) throw new Error(`${key}: expected ${domains.join(" or ")}.`);
   }
-  if (config.language !== void 0 && !["auto", "de", "en"].includes(config.language)) throw new Error("language must be auto, de or en.");
+  if (config.language !== void 0 && !languageCodes.includes(config.language)) throw new Error(`language must be one of: ${languageCodes.join(", ")}.`);
   for (const key of ["name", "icon"]) if (config[key] !== void 0 && typeof config[key] !== "string") throw new Error(`${key} must be a string.`);
   if (config.show_actions !== void 0 && typeof config.show_actions !== "boolean") throw new Error("show_actions must be a boolean.");
   return { show_actions: true, ...config };
@@ -543,10 +1096,6 @@ function overviewAction(config, states, key) {
 }
 
 // src/overview-editor.js
-var labels2 = {
-  de: { name: "Titel", icon: "Symbol", language: "Sprache", show_actions: "Zentrale Aktionen anzeigen", automation_entity: "Eigene Bew\xE4sserungsautomation (optional)", main_valve_entity: "Hauptventil (optional, Status und Details)", calculate_entity: "Alle berechnen (automatisch erkannt)", update_weather_entity: "Wetter aktualisieren (automatisch erkannt)", precipitation_switch_entity: "Regenprognose-Sperre (automatisch erkannt)", precipitation_threshold_entity: "Regenschwelle (automatisch erkannt)" },
-  en: { name: "Title", icon: "Icon", language: "Language", show_actions: "Show central actions", automation_entity: "External irrigation automation (optional)", main_valve_entity: "Main valve (optional, status and details)", calculate_entity: "Calculate all (auto-discovered)", update_weather_entity: "Update weather (auto-discovered)", precipitation_switch_entity: "Forecast rain protection (auto-discovered)", precipitation_threshold_entity: "Rain threshold (auto-discovered)" }
-};
 var IrrigationOverviewEditor = class extends HTMLElement {
   constructor() {
     super();
@@ -570,7 +1119,7 @@ var IrrigationOverviewEditor = class extends HTMLElement {
         { name: "icon", selector: { icon: {} } },
         ...overviewEntityKeys.map((name) => ({ name, selector: { entity: { domain: name === "automation_entity" ? "automation" : name === "main_valve_entity" ? ["switch", "valve"] : name.endsWith("switch_entity") ? "switch" : name.endsWith("threshold_entity") ? "number" : "button" } } })),
         { name: "show_actions", selector: { boolean: {} } },
-        { name: "language", selector: { select: { options: [{ value: "auto", label: "Auto" }, { value: "de", label: "Deutsch" }, { value: "en", label: "English" }] } } }
+        { name: "language", selector: { select: { options: languageOptions } } }
       ];
       this._form.addEventListener("value-changed", (event) => {
         event.stopPropagation();
@@ -580,19 +1129,15 @@ var IrrigationOverviewEditor = class extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
       });
     }
-    const lang = this._config.language && this._config.language !== "auto" ? this._config.language : this._hass.language;
+    const t = translate(resolveLanguage(this._config.language, this._hass), "overviewEditor");
     this._form.hass = this._hass;
     this._form.data = { show_actions: true, language: "auto", ...this._config };
-    this._form.computeLabel = (field) => labels2[lang?.startsWith("de") ? "de" : "en"][field.name] || field.name;
+    this._form.computeLabel = (field) => t[field.name] || field.name;
   }
 };
 if (!customElements.get("irrigation-overview-card-editor")) customElements.define("irrigation-overview-card-editor", IrrigationOverviewEditor);
 
 // src/overview-card.js
-var text = {
-  de: { title: "Bew\xE4sserung", eyebrow: "Smart Irrigation \xB7 Zentrale", unknown: "Status unbekannt", running: "Bew\xE4sserung aktiv", paused: "Automatik pausiert", blocked: "Bew\xE4sserung zur\xFCckgestellt", noDemand: "Kein Bedarf eingeplant", scheduled: "Start vorgemerkt", demand: "Wasserbedarf vorhanden", planning: "N\xE4chster Planzeitpunkt", notArmed: "Start nicht vorgemerkt", armed: "Start vorgemerkt", noStart: "Kein Startzeitpunkt gew\xE4hlt", duration: "Gesamtbedarf", estimated: "Prognose", calculated: "Berechnet", zones: "Zonen mit Bedarf", of: "von", forecast: "Regenprognose", threshold: "Regengrenze", window: "Zeitraum", hours: "h", rainProtection: "Regenprognose-Sperre", freeze: "Frostschutz", rain_sensor: "Regensensor", wind: "Windschutz", precipitation: "Regenprognose", soil_moisture: "Bodenfeuchte", days_between: "Bew\xE4sserungsabstand", postponed: "Aufschub", clear: "Freigegeben", held: "Sperrt", unavailable: "Nicht verf\xFCgbar", disabled: "Ausgeschaltet", active: "Aktiv", inactive: "Aus", limit: "Grenze", heldZones: "Zonen zur\xFCckgestellt", checks: "Schutz & Sperrgr\xFCnde", weather: "Wetterquelle", calculation: "Automatische Berechnung", automatic: "Aktiv", manual: "Aus", calculate: "Alle berechnen", update: "Wetter aktualisieren", automation: "Bew\xE4sserungsautomatik", enable: "Aktivieren", pause: "Pausieren", disable: "Deaktivieren", mainValve: "Hauptventil", on: "Ge\xF6ffnet", off: "Geschlossen", opening: "\xD6ffnet", closing: "Schlie\xDFt", refresh: "Planung neu laden", sending: "Wird gesendet \u2026", error: "Aktion fehlgeschlagen.", offline: "Zentrale Daten nicht verf\xFCgbar. Verbindung und Smart Irrigation pr\xFCfen.", loading: "Planung wird geladen \u2026", stale: "Smart Irrigation meldet veraltete Zonendaten.", external: "Ventile werden \xFCber eigene Automationen gesteuert.", direct: "Direkte Ventilsteuerung durch Smart Irrigation.", forecastNote: "Vorschau der Integrationsplanung; Bedarf und Sperren k\xF6nnen sich bis zum Start \xE4ndern.", noChecks: "Keine aktiven Schutzpr\xFCfungen gemeldet.", missing: "Konfigurierte Entit\xE4t nicht verf\xFCgbar", day: "Tage", freezeOff: "Der Frostschutz ist in Smart Irrigation ausgeschaltet.", freezeUnknown: "Kein g\xFCltiger Temperaturwert verf\xFCgbar.", at: "um", freezeLimit: "Frostgrenze", noFreeze: "Kein Frosthindernis", freezeBlocked: "Frostsperre aktiv", pendingCheck: "Pr\xFCfung nicht gemeldet" },
-  en: { title: "Irrigation", eyebrow: "Smart Irrigation \xB7 Overview", unknown: "Status unknown", running: "Irrigation active", paused: "Automation paused", blocked: "Irrigation deferred", noDemand: "No demand planned", scheduled: "Start armed", demand: "Water demand detected", planning: "Next planned start", notArmed: "Start not armed", armed: "Start armed", noStart: "No start trigger selected", duration: "Total demand", estimated: "Forecast", calculated: "Calculated", zones: "Zones needing water", of: "of", forecast: "Rain forecast", threshold: "Rain threshold", window: "Window", hours: "h", rainProtection: "Forecast rain protection", freeze: "Frost protection", rain_sensor: "Rain sensor", wind: "Wind protection", precipitation: "Rain forecast", soil_moisture: "Soil moisture", days_between: "Watering interval", postponed: "Postponed", clear: "Clear", held: "Blocking", unavailable: "Unavailable", disabled: "Disabled", active: "Active", inactive: "Off", limit: "Limit", heldZones: "zones deferred", checks: "Protection & skip conditions", weather: "Weather source", calculation: "Automatic calculation", automatic: "Enabled", manual: "Off", calculate: "Calculate all", update: "Update weather", automation: "Irrigation automation", enable: "Enable", pause: "Pause", disable: "Disable", mainValve: "Main valve", on: "Open", off: "Closed", opening: "Opening", closing: "Closing", refresh: "Reload planning", sending: "Sending \u2026", error: "Action failed.", offline: "Central data unavailable. Check the connection and Smart Irrigation.", loading: "Loading planning \u2026", stale: "Smart Irrigation reports stale zone data.", external: "Valves are controlled by external automations.", direct: "Smart Irrigation controls valves directly.", forecastNote: "Integration planning preview; demand and skip conditions may change before the start.", noChecks: "No active protection checks reported.", missing: "Configured entity unavailable", day: "days", freezeOff: "Frost protection is disabled in Smart Irrigation.", freezeUnknown: "No valid temperature reading available.", at: "at", freezeLimit: "Frost threshold", noFreeze: "No frost restriction", freezeBlocked: "Frost protection blocking", pendingCheck: "Check not reported" }
-};
 var esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 var icon = (value) => `<ha-icon icon="${esc(value)}"></ha-icon>`;
 var extraStyles = `
@@ -723,8 +1268,7 @@ var IrrigationOverviewCard = class extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
     const config = this._resolved(), m = overviewModel(config, this._hass.states, this._system, this._discovery);
-    const lang = config.language && config.language !== "auto" ? config.language : this._hass.language;
-    const t = this._t = text[lang?.startsWith("de") ? "de" : "en"];
+    const t = this._t = translate(resolveLanguage(config.language, this._hass), "overview");
     this.toggleAttribute("dark", !!this._hass.themes?.darkMode);
     const focus = this.shadowRoot.activeElement?.id;
     const rawFreeze = Array.isArray(m.info?.skip_preview?.checks) ? m.info.skip_preview.checks.find((check) => check.id === "freeze") : null;
@@ -772,14 +1316,6 @@ window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === "irrigation-overview-card")) window.customCards.push({ type: "irrigation-overview-card", name: "Irrigation Overview", description: "Central Smart Irrigation planning, frost protection, rain forecast and actions.", preview: true, documentationURL: "https://github.com/lweberru/ha_irrigation_zone_card" });
 
 // src/card.js
-var translations = {
-  de: { zone: "Bew\xE4sserungszone", watering: "Ventil aktiv", needed: "Bew\xE4sserung n\xF6tig", balanced: "Kein Wasserbedarf", unknown: "Wasserbedarf unbekannt", moisture: "Bodenfeuchte", balance: "Wasserbilanz \xB7 live", reserve: "Wasservorrat", deficit: "Wasserdefizit", neutral: "Ausgeglichen", duration: "Berechnete Dauer", used: "Wasserverbrauch", valve: "Zonenventil", open: "\xD6ffnen", close: "Schlie\xDFen", opening: "\xD6ffnet \u2026", closing: "Schlie\xDFt \u2026", on: "Ge\xF6ffnet", off: "Geschlossen", unavailable: "Nicht verf\xFCgbar", pending: "Wird gesendet \u2026", confirm: "Ventil manuell \xF6ffnen? Es bleibt ge\xF6ffnet, bis es geschlossen wird. Die berechnete Dauer startet keinen Timer.", manual: "Manuell \xB7 ohne Abschalttimer", failed: "Ventil konnte nicht geschaltet werden.", missing: "Nicht verf\xFCgbar", details: "Zonendetails \xF6ffnen", noData: "Die konfigurierten Sensoren liefern noch keine Werte." },
-  en: { zone: "Irrigation zone", watering: "Valve active", needed: "Irrigation needed", balanced: "No irrigation needed", unknown: "Water demand unknown", moisture: "Soil moisture", balance: "Water balance \xB7 live", reserve: "Water reserve", deficit: "Water deficit", neutral: "Balanced", duration: "Calculated duration", used: "Water used", valve: "Zone valve", open: "Open", close: "Close", opening: "Opening \u2026", closing: "Closing \u2026", on: "Open", off: "Closed", unavailable: "Unavailable", pending: "Sending \u2026", confirm: "Open valve manually? It stays open until closed. The calculated duration does not start a timer.", manual: "Manual \xB7 no shutoff timer", failed: "Could not control the valve.", missing: "Unavailable", details: "Open zone details", noData: "The configured sensors have no readings yet." }
-};
-Object.assign(translations.de, { sharedValve: "Gemeinsames Ventil", loading: "Zone wird geladen \u2026", zoneMissing: "Die ausgew\xE4hlte Smart-Irrigation-Zone wurde nicht gefunden.", discoveryFailed: "Automatische Zuordnung nicht verf\xFCgbar. Verbindung und Smart-Irrigation-Integration pr\xFCfen oder Entit\xE4ten manuell eintragen.", autoMissing: "Sensoren nicht automatisch gefunden (optional manuell zuweisen)" });
-Object.assign(translations.en, { sharedValve: "Shared valve", loading: "Loading zone \u2026", zoneMissing: "The selected Smart Irrigation zone was not found.", discoveryFailed: "Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.", autoMissing: "Sensors not discovered (assign manually if needed)" });
-Object.assign(translations.de, { balanceHistory: "Wasserbilanz und Verlauf \xF6ffnen", et: "Angewandte ET", etDescription: "Zuletzt angewandter ET-Wert aus Smart Irrigation; kein Live-Z\xE4hler.", problem: "Zonenproblem gemeldet", problemUnknown: "Problemstatus unbekannt", problemUnknownDetail: "Der Problemsensor ist nicht verf\xFCgbar oder wurde nicht gefunden.", problemDetail: "Details im Problemsensor pr\xFCfen.", problemReasons: { valve_did_not_open: "Ventil hat nicht ge\xF6ffnet", valve_did_not_close: "Ventil hat nicht geschlossen", no_flow: "Kein Durchfluss erkannt" } });
-Object.assign(translations.en, { balanceHistory: "Open water balance and history", et: "Applied ET", etDescription: "Last applied ET value from Smart Irrigation; not a live counter.", problem: "Zone problem reported", problemUnknown: "Problem status unknown", problemUnknownDetail: "The problem sensor is unavailable or was not found.", problemDetail: "Check the problem sensor for details.", problemReasons: { valve_did_not_open: "Valve did not open", valve_did_not_close: "Valve did not close", no_flow: "No flow detected" } });
 var escape = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 var icon2 = (value) => `<ha-icon icon="${escape(value)}"></ha-icon>`;
 var IrrigationZoneCard = class extends HTMLElement {
@@ -845,7 +1381,7 @@ var IrrigationZoneCard = class extends HTMLElement {
   _rulesHTML(config, lang) {
     const rules = zoneRules(config, this._discovery, this._system);
     if (!rules) return "";
-    const t = ruleLabels[lang?.startsWith("de") ? "de" : "en"];
+    const t = translate(lang, "rules");
     const value = (number, unit) => number === null ? "\u2014" : `${escape(unit === "in" ? new Intl.NumberFormat(this._hass.locale?.language || this._hass.language || "en", { maximumFractionDigits: 3 }).format(number) : this._number(number))} <small>${escape(unit)}</small>`;
     const tiles = [
       ["mdi:water-minus-outline", t.threshold, rules.unit ? value(rules.threshold, rules.unit) : "\u2014", t.thresholdHint],
@@ -925,8 +1461,8 @@ var IrrigationZoneCard = class extends HTMLElement {
     const focused = this.shadowRoot.activeElement;
     const focusTarget = focused?.id ? { id: focused.id } : focused?.dataset.entity ? { entity: focused.dataset.entity } : focused?.classList.contains("more") ? { more: true } : null;
     const config = this._resolved();
-    const lang = config.language === "auto" || !config.language ? this._hass.language : config.language;
-    const t = this._t = translations[lang?.startsWith("de") ? "de" : "en"];
+    const lang = resolveLanguage(config.language, this._hass);
+    const t = this._t = translate(lang, "card");
     const m = zoneModel(config, this._hass.states);
     const name = config.name || m.main?.attributes?.friendly_name?.replace(/ (Dauer|Duration)$/i, "") || "Smart Irrigation";
     const duration = durationParts(m.main);
@@ -977,6 +1513,5 @@ if (!customElements.get("irrigation-zone-card")) customElements.define("irrigati
 window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === "irrigation-zone-card")) window.customCards.push({ type: "irrigation-zone-card", name: "Irrigation Zone", description: "Smart Irrigation: water balance, soil moisture and zone valve.", preview: true, documentationURL: "https://github.com/lweberru/ha_irrigation_zone_card" });
 export {
-  IrrigationZoneCard,
-  translations
+  IrrigationZoneCard
 };

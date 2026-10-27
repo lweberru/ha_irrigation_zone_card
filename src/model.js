@@ -1,3 +1,5 @@
+import { languageCodes } from './i18n/index.js';
+
 export const entityKeys = ['entity', 'irrigation_needed_entity', 'bucket_entity', 'water_used_entity', 'moisture_entity', 'valve_entity', 'et_entity', 'problem_entity'];
 
 export function numeric(value) {
@@ -37,7 +39,7 @@ export function validateConfig(config) {
   for (const key of ['show_control', 'confirm_open', 'show_rules']) {
     if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
   }
-  if (config.language !== undefined && !['auto', 'de', 'en'].includes(config.language)) throw new Error('language must be auto, de or en.');
+  if (config.language !== undefined && !languageCodes.includes(config.language)) throw new Error(`language must be one of: ${languageCodes.join(', ')}.`);
   for (const key of ['name', 'icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
   return { show_control: true, confirm_open: true, show_rules:true, ...config };
 }

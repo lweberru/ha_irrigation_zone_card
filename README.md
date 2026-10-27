@@ -1,6 +1,6 @@
 # Irrigation Zone Card
 
-**English** | [Deutsch](README.de.md)
+**English** | [Deutsch](README.de.md) | [Nederlands](README.nl.md)
 
 A Home Assistant dashboard card for **one Smart Irrigation zone**. A soil moisture ring, water balance with a zero reference, calculated watering duration, and water usage in a calm, compact garden design. An optional zone valve (`switch.*` or `valve.*`) adds manual control.
 
@@ -8,7 +8,7 @@ Since v0.3.0, the same HACS installation also includes **Irrigation Overview**, 
 
 ![Zone card preview](docs/preview-light.png)
 
-The screenshots show the German interface. Both cards support English and German and follow your Home Assistant language by default. Use `language: en` to select English explicitly.
+The screenshots show the German interface. Both cards support English, German and Dutch and follow your Home Assistant language by default. Use `language: en` to select English explicitly.
 
 ## Installation
 
@@ -63,7 +63,7 @@ The frost section uses the decision reported by `skip_preview` and does not inve
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `name` | `Irrigation` / `Bewässerung` | Title |
+| `name` | `Irrigation` / `Bewässerung` / `Beregening` | Title |
 | `icon` | `mdi:sprinkler-variant` | Icon |
 | `automation_entity` | optional | Your `automation.*`; state and enable/pause control |
 | `main_valve_entity` | optional | `switch.*` or `valve.*`; state and HA more-info dialog |
@@ -72,7 +72,7 @@ The frost section uses the decision reported by `skip_preview` and does not inve
 | `precipitation_switch_entity` | automatic | `switch.*` for rain forecast protection |
 | `precipitation_threshold_entity` | automatic | `number.*` for the rain threshold |
 | `show_actions` | `true` | Show direct service buttons; HA more-info dialogs remain accessible |
-| `language` | `auto` | `auto`, `de`, `en` |
+| `language` | `auto` | `auto`, `en`, `de`, `nl` |
 
 Requires the Smart Irrigation endpoints `smart_irrigation/info`, `smart_irrigation/config`, and `smart_irrigation/zones`, plus access to the entity registry. Tested with v2026.10.8. While displayed, the card refreshes planning data when integration settings or relevant entity states change, on reconnection, and once per minute. Multiple overview cards share planning requests; overview and zone cards share zone and registry requests. Subscriptions and timers are cleaned up when cards are removed.
 
@@ -153,7 +153,7 @@ All fields are editable in the visual card editor. The card picker suggests auto
 | `confirm_open` | `true` | Ask for confirmation before opening manually |
 | `bucket_min` | negative of the scale maximum | Left end of the scale, below 0 |
 | `bucket_max` | duration sensor's `maximum_bucket`, otherwise `25` | Right end of the scale, above 0, in the water balance unit |
-| `language` | `auto` | `auto`, `de`, or `en`; other HA languages use English text |
+| `language` | `auto` | `auto`, `en`, `de`, or `nl`; other HA languages use English text |
 
 Numbers follow the Home Assistant user's locale. Light/dark themes and reduced motion preferences are respected. In Sections views, the card defaults to 12 columns and automatic height; adjust the width through HA's layout options. Click duration, usage, soil moisture, or applied ET to open the corresponding HA more-info dialog. Click the water balance value or scale to open its dialog; a chart icon indicates the available history. History in HA's native sensor dialog depends on stored Recorder data. The card does not store its own history or change Recorder settings. The water balance also supports keyboard activation with Enter or Space.
 
@@ -211,6 +211,10 @@ Additional checks cover zone ID `0`, stable discovery after entity IDs are renam
 The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 24 logic tests and 23 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
 `src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
+
+### Adding a language
+
+All texts live in `src/i18n/`, one file per language. To add a language, copy `src/i18n/en.js` to `src/i18n/<code>.js`, translate the values (keep the keys), and register the file in `src/i18n/index.js`. The language then appears in both editors and is accepted as `language`. Missing texts fall back to English; `npm test` checks that every language has the same keys as English.
 
 ## References
 
