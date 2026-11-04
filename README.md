@@ -10,6 +10,14 @@ Since v0.3.0, the same HACS installation also includes **Irrigation Overview**, 
 
 The screenshots show the German interface. Both cards support English and German and follow your Home Assistant language by default. Use `language: en` to select English explicitly.
 
+## Requirements and optional local controls
+
+**Smart Irrigation is the only required Home Assistant integration for these cards.** No specific local automation, helper, timer, soil moisture sensor, or valve is required. Use a version exposing the documented zone/system endpoints and stable entity identifiers (validated with v2026.10.8).
+
+The overview works with just `type: custom:irrigation-overview-card`; a zone card needs only `type: custom:irrigation-zone-card` and its `zone` ID. An `automation_entity` is an **optional external automation**, selected explicitly in the editor or YAML. It is never discovered or assumed. Without it, the automation tile is omitted and integration planning/protection data remain available. `main_valve_entity` is independently optional. Zone moisture sensors and linked valves are optional assignments read from Smart Irrigation or supplied as overrides.
+
+The cards do not create, depend on, or automatically discover a local shutoff automation or timer. Direct valve commands do not promise a timed run. If you want timed manual watering, configure the shutoff separately in Home Assistant or the device. Installation-specific files such as `examples/overview-garden.yaml` are examples, not requirements.
+
 ## Installation
 
 ### HACS
@@ -217,7 +225,7 @@ Checks cover configuration, units, status logic, scales, actuator actions, rende
 
 Additional checks cover zone ID `0`, stable discovery after entity IDs are renamed, manual overrides, zone changes, shared valves, shared requests, subscription cleanup, and API errors. Discovery for all three sample zones was validated against real API responses without operating valves.
 
-The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 25 logic tests and 26 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
+The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 26 logic tests and 28 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
 `src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
 

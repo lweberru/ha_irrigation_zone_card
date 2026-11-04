@@ -8,6 +8,14 @@ Seit v0.3.0 enthält dieselbe HACS-Installation zusätzlich **Irrigation Overvie
 
 ![Kartenvorschau](docs/preview-light.png)
 
+## Voraussetzungen und optionale lokale Steuerung
+
+**Smart Irrigation ist die einzige erforderliche Home-Assistant-Integration für diese Karten.** Eine bestimmte lokale Automation, ein Helfer, Timer, Bodenfeuchtesensor oder Ventil ist nicht erforderlich. Benötigt wird eine Version mit den dokumentierten Zonen-/System-Endpunkten und stabilen Entity-Kennungen (geprüft mit v2026.10.8).
+
+Für die Zentrale genügt `type: custom:irrigation-overview-card`; die Zonenkarte benötigt lediglich `type: custom:irrigation-zone-card` und ihre `zone`-ID. `automation_entity` bindet eine **optionale externe Automation** ein, die ausdrücklich im Editor oder in YAML ausgewählt wird. Sie wird weder automatisch gesucht noch vorausgesetzt. Ohne sie entfällt die Automatikfläche; Planung und Schutzdaten der Integration bleiben verfügbar. `main_valve_entity` ist unabhängig davon optional. Bodenfeuchtesensoren und verknüpfte Zonenventile sind optionale Zuordnungen aus Smart Irrigation oder manuelle Überschreibungen.
+
+Die Karten erstellen keine lokale Abschaltautomation und keinen Timer, setzen beides nicht voraus und erkennen es nicht automatisch. Direkte Ventilbefehle versprechen keinen zeitgesteuerten Lauf. Eine gewünschte Abschaltung für manuelles Bewässern wird separat in Home Assistant oder im Gerät eingerichtet. Installationsspezifische Dateien wie `examples/overview-garden.yaml` sind Beispiele, keine Voraussetzungen.
+
 ## Installation
 
 ### HACS
@@ -215,7 +223,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 25 Logiktests und 26 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 26 Logiktests und 28 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

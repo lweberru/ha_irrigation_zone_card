@@ -1,3 +1,5 @@
+# Installation-specific example: these local entities are optional.
+# For an integration-only overview, use just type: custom:irrigation-overview-card.
 type: custom:irrigation-overview-card
 name: Gartensteuerung
 automation_entity: automation.gartenbewasserung_gemeinsames_ventil_smart_irrigation

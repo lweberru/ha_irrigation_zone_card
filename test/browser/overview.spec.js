@@ -65,3 +65,18 @@ test('main valve honors valve capabilities and moving states; failures remain vi
   await page.evaluate(()=>{const card=document.querySelector('irrigation-overview-card');card.hass={...card._hass,states:{...card._hass.states,'valve.main':{state:'open',attributes:{supported_features:2}}},callService:async()=>{throw new Error('Valve offline');}};});
   await card.locator('#main_valve_entity').click();await expect(card.getByRole('alert')).toContainText('Valve offline');await expect(card.locator('#main_valve_entity')).toContainText('Geöffnet');
 });
+test('minimal overview works with Smart Irrigation alone and does not request local entities',async({page})=>{
+  await page.evaluate(()=>{
+    const card=document.querySelector('irrigation-overview-card');
+    card.setConfig({type:'custom:irrigation-overview-card'});
+    const states=Object.fromEntries(Object.entries(card._hass.states).filter(([id])=>!id.startsWith('automation.')&&id!=='switch.main_valve'));
+    card.hass={...card._hass,states};
+  });
+  const card=page.locator('irrigation-overview-card').first();
+  await expect(card.locator('.system-status')).toHaveText('Start vorgemerkt');
+  await expect(card.locator('.top-controls')).toHaveCount(0);
+  await expect(card.locator('.notice')).toHaveCount(0);
+  await expect(card.locator('.frost')).toContainText('11,7°C');
+  await card.getByRole('button',{name:'Alle berechnen',exact:true}).click();
+  expect(await page.evaluate(()=>window.overviewCalls)).toEqual([{domain:'button',service:'press',data:{entity_id:'button.calculate_all'}}]);
+});

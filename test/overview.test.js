@@ -56,3 +56,15 @@ test('main valve actions use explicit services and respect capabilities',()=>{
   assert.deepEqual(overviewAction({main_valve_entity:'switch.main'},{'switch.main':{state:'on'}},'main_valve_entity'),{domain:'switch',service:'turn_off',entity:'switch.main'});
   assert.throws(()=>validateOverviewConfig({confirm_open:'false'}));assert.equal(validateOverviewConfig({}).confirm_open,true);
 });
+test('integration-only overview never discovers or requires local automations, valves or timers',()=>{
+  const minimal=validateOverviewConfig({});
+  const resolved=resolveOverview(minimal,{registry:[
+    {platform:'automation',entity_id:'automation.unrelated',unique_id:'smart_irrigation_automation'},
+    {platform:'switch',entity_id:'switch.unrelated',unique_id:'smart_irrigation_main_valve'},
+  ]});
+  assert.equal(resolved.automation_entity,undefined);assert.equal(resolved.main_valve_entity,undefined);
+  const states={'automation.unrelated':{state:'off'}};
+  assert.equal(overviewModel(resolved,states,system,{zones:[{}]}).status,'scheduled');
+  assert.equal(overviewAction(resolved,states,'automation_entity'),null);
+  assert.equal(overviewAction(resolved,states,'main_valve_entity'),null);
+});

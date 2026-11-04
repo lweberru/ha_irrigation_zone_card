@@ -209,3 +209,20 @@ test('zone valve is integrated with the demand status above the readings and rem
   await expect(card.locator('.wrap > .control')).toHaveCount(0);
   await card.evaluate(card=>card.setConfig({...window.demoConfig,show_control:false}));await expect(card.locator('#control')).toHaveCount(0);await expect(card.locator('.zone-summary .control-title')).toContainText('Geschlossen');
 });
+test('zone discovery needs no local moisture sensor, valve, automation or timer',async({page})=>{
+  await zoneFixture(page);
+  await page.evaluate(async()=>{
+    window.zoneData[0]={id:0,name:'Integration only'};
+    const card=document.querySelector('irrigation-zone-card');
+    const localIds=[window.demoConfig.moisture_entity,window.demoConfig.valve_entity];
+    card.hass={...card._hass,states:Object.fromEntries(Object.entries(card._hass.states).filter(([id])=>!localIds.includes(id)))};
+    await window.discoveryCallbacks.zones();
+  });
+  const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('h2')).toHaveText('Integration only');
+  await expect(card.locator('.balance-value')).toHaveText('+3,5 mm');
+  await expect(card.locator('.status')).toHaveText('Kein Wasserbedarf');
+  await expect(card.locator('#control')).toHaveCount(0);await expect(card.locator('.ring')).toHaveCount(0);
+  await expect(card.locator('.notice')).toHaveCount(0);
+  expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
+});
