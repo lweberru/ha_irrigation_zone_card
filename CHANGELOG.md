@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — 2026-11-04
+
+- Move automation and main valve controls to the top of the overview card. The paused automation is directly clickable; the main valve opens/closes without a more-info dialog. Remove their duplicate lower settings rows.
+- Integrate zone valve controls next to the demand status, above the readings, and remove the separate bottom row.
+- Direct main valve actions support switches and valves, honor capabilities/moving states, show service errors, and confirm opening by default (`confirm_open`). Read-only controls remain available through `show_actions: false` / `show_control: false`.
+- Clarify that the card starts no timer of its own; external safety automations/device timers still apply. Document where to configure automatic shutoff in English and German.
+- 25 logic tests and 26 browser checks, including direct routing, cancellation, errors, top placement, and responsive layouts.
+
 ## 0.5.0 — 2026-10-24
 
 - Neuer kompakter Bereich „Bewässerungsregeln“ für automatisch ausgewählte Zonen: Defizitschwelle, Mindestabstand mit Herkunft Zone/Global, Bodenfeuchte-Sperre und Laufzeitlimit.

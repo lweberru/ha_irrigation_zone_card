@@ -202,3 +202,10 @@ test('rules show zone values, inherited intervals, backend holds and update afte
   await expect(card.locator('.rules')).toHaveCount(0);
   expect(await page.evaluate(()=>window.discoveryUnsubs)).toBe(1);
 });
+
+test('zone valve is integrated with the demand status above the readings and remains optional',async({page})=>{
+  const card=page.locator('irrigation-zone-card').first();await expect(card.locator('.zone-summary #control')).toHaveCount(1);
+  expect(await card.evaluate(card=>card.shadowRoot.querySelector('#control').getBoundingClientRect().bottom <= card.shadowRoot.querySelector('.overview').getBoundingClientRect().top)).toBe(true);
+  await expect(card.locator('.wrap > .control')).toHaveCount(0);
+  await card.evaluate(card=>card.setConfig({...window.demoConfig,show_control:false}));await expect(card.locator('#control')).toHaveCount(0);await expect(card.locator('.zone-summary .control-title')).toContainText('Geschlossen');
+});

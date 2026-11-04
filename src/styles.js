@@ -92,4 +92,13 @@ button:disabled { cursor:default; opacity:.55; }
 .rule-holds { padding:10px; margin-top:14px; border-radius:12px; color:var(--iz-amber); background:color-mix(in srgb,var(--iz-amber) 10%,transparent); font-size:11px; line-height:1.5; }
 .rule-holds > div { display:flex; gap:7px; align-items:center; }
 .rule-holds ha-icon { --mdc-icon-size:16px; flex-shrink:0; }
+
+.zone-summary { display:flex; gap:12px; justify-content:space-between; align-items:center; margin-top:18px; }
+.zone-summary .status { margin:0; min-width:0; line-height:1.4; }
+.zone-summary .dot { flex-shrink:0; }
+.zone-summary .control { margin:0; padding:0; border:0; gap:8px; min-width:0; justify-content:flex-end; }
+.zone-summary .control > ha-icon { display:none; }
+.zone-summary .control-title { font-size:10px; max-width:105px; line-height:1.5; color:var(--secondary-text-color,#77877f); }
+.zone-summary .control button { padding:10px; font-size:11px; }
+@container(max-width:280px) { .zone-summary { flex-wrap:wrap; } .zone-summary .control { flex:1; } }
 `;

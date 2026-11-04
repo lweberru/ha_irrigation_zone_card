@@ -22,14 +22,15 @@ test('native central buttons and protection toggle target exact entities',async(
   expect(await page.evaluate(()=>window.overviewCalls)).toEqual([{domain:'button',service:'press',data:{entity_id:'button.calculate_all'}},{domain:'button',service:'press',data:{entity_id:'button.update_weather'}},{domain:'switch',service:'turn_off',data:{entity_id:'switch.rain_protection'}}]);
 });
 test('external automation pause is shown; service failures do not fake success',async({page})=>{
-  const card=page.locator('irrigation-overview-card').first();await card.locator('#automation_entity').click();await expect(card.locator('.system-status')).toHaveText('Automatik pausiert');
+  const card=page.locator('irrigation-overview-card').first();await card.locator('#automation_entity').click();await expect(card.locator('#automation_entity')).toContainText('Automatik pausiert');await expect(card.locator('.settings #automation_entity')).toHaveCount(0);
   await page.evaluate(()=>{document.querySelector('irrigation-overview-card')._hass.callService=async()=>{throw new Error('No permission');};});
   await card.getByRole('button',{name:'Alle berechnen',exact:true}).click();await expect(card.getByRole('alert')).toContainText('No permission');
 });
-test('threshold and main valve use HA detail dialog; read-only inline mode hides actions',async({page})=>{
+test('threshold uses HA details; main valve switches directly and read-only mode hides actions',async({page})=>{
   await page.evaluate(()=>document.addEventListener('hass-more-info',event=>window.overviewMore=event.detail));
   const card=page.locator('irrigation-overview-card').first();await card.locator('#rain-threshold').click();expect(await page.evaluate(()=>window.overviewMore)).toEqual({entityId:'number.rain_threshold'});
-  await card.locator('#main-valve').click();expect(await page.evaluate(()=>window.overviewMore)).toEqual({entityId:'switch.main_valve'});
+  page.once('dialog',dialog=>dialog.accept());await card.locator('#main_valve_entity').click();expect(await page.evaluate(()=>window.overviewCalls.at(-1))).toEqual({domain:'switch',service:'turn_on',data:{entity_id:'switch.main_valve'}});expect(await page.evaluate(()=>window.overviewMore)).toEqual({entityId:'number.rain_threshold'});
+  await card.locator('#main_valve_entity').click();expect(await page.evaluate(()=>window.overviewCalls.at(-1).service)).toBe('turn_off');
   await card.evaluate(card=>card.setConfig({...window.overviewConfig,show_actions:false}));await expect(card.locator('[data-action]')).toHaveCount(0);
 });
 test('API failure clears planning instead of showing a healthy zero',async({page})=>{
@@ -45,4 +46,22 @@ test('central card fits phone width and supports dark theme',async({page})=>{
   await page.screenshot({path:'test-results/overview-mobile.png',fullPage:true});
   await page.setViewportSize({width:1280,height:1400});await page.screenshot({path:'test-results/overview-light.png',fullPage:true});
   await page.locator('#theme').click();await page.screenshot({path:'test-results/overview-dark.png',fullPage:true});
+});
+
+test('top controls precede planning, paused automation is clickable and main opening can be cancelled',async({page})=>{
+  const card=page.locator('irrigation-overview-card').first();
+  expect(await card.evaluate(card=>card.shadowRoot.querySelector('.top-controls').compareDocumentPosition(card.shadowRoot.querySelector('.plan')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  await card.locator('#automation_entity').click();await expect(card.locator('#automation_entity')).toContainText('Automatik pausiert');
+  await card.locator('#automation_entity').click();await expect(card.locator('#automation_entity')).toContainText('Automatik aktiv');
+  page.once('dialog',dialog=>dialog.dismiss());await card.locator('#main_valve_entity').click();
+  expect(await page.evaluate(()=>window.overviewCalls.filter(call=>call.data.entity_id==='switch.main_valve'))).toEqual([]);
+  await expect(card.locator('.settings [data-action="main_valve_entity"]')).toHaveCount(0);
+});
+test('main valve honors valve capabilities and moving states; failures remain visible',async({page})=>{
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-overview-card');card.setConfig({...window.overviewConfig,main_valve_entity:'valve.main',confirm_open:false});card.hass={...card._hass,states:{...card._hass.states,'valve.main':{state:'closed',attributes:{supported_features:1}}}};});
+  const card=page.locator('irrigation-overview-card').first();await card.locator('#main_valve_entity').click();expect(await page.evaluate(()=>window.overviewCalls.at(-1))).toEqual({domain:'valve',service:'open_valve',data:{entity_id:'valve.main'}});
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-overview-card');card.hass={...card._hass,states:{...card._hass.states,'valve.main':{state:'opening',attributes:{supported_features:3}}}};});
+  await expect(card.locator('#main_valve_entity')).toBeDisabled();
+  await page.evaluate(()=>{const card=document.querySelector('irrigation-overview-card');card.hass={...card._hass,states:{...card._hass.states,'valve.main':{state:'open',attributes:{supported_features:2}}},callService:async()=>{throw new Error('Valve offline');}};});
+  await card.locator('#main_valve_entity').click();await expect(card.getByRole('alert')).toContainText('Valve offline');await expect(card.locator('#main_valve_entity')).toContainText('Geöffnet');
 });

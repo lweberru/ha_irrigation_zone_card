@@ -1,4 +1,4 @@
-import { numeric } from './model.js';
+import { numeric, valveAction } from './model.js';
 
 export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity'];
 const globalRoles = {
@@ -17,8 +17,8 @@ export function validateOverviewConfig(config) {
   }
   if (config.language !== undefined && !['auto','de','en'].includes(config.language)) throw new Error('language must be auto, de or en.');
   for (const key of ['name','icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
-  if (config.show_actions !== undefined && typeof config.show_actions !== 'boolean') throw new Error('show_actions must be a boolean.');
-  return {show_actions:true,...config};
+  for (const key of ['show_actions','confirm_open']) if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
+  return {show_actions:true,confirm_open:true,...config};
 }
 export function resolveOverview(config, discovery) {
   const result = {...config};
@@ -61,6 +61,10 @@ export function overviewAction(config, states, key) {
   const entity = config[key];
   const state = states[entity]?.state;
   if (!entity || state === undefined || state === 'unavailable') return null;
+  if (key === 'main_valve_entity') {
+    const action = valveAction(entity, state, states[entity]?.attributes?.supported_features ?? 0);
+    return action ? {...action,entity} : null;
+  }
   if (['calculate_entity','update_weather_entity'].includes(key) && entity.startsWith('button.')) return {domain:'button',service:'press',entity};
   if (key === 'automation_entity' && entity.startsWith('automation.') && ['on','off'].includes(state)) return {domain:'automation',service:state === 'on' ? 'turn_off' : 'turn_on',entity};
   if (key === 'precipitation_switch_entity' && entity.startsWith('switch.') && ['on','off'].includes(state)) return {domain:'switch',service:state === 'on' ? 'turn_off' : 'turn_on',entity};

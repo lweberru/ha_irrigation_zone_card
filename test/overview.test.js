@@ -46,3 +46,13 @@ test('system reader shares requests, handles partial failure and cleans up subsc
   hass.callWS=async()=>{throw new Error('offline');};await callbacks[0]();assert.equal(first.at(-1).error,true);assert.equal(first.at(-1).info,null);
   a.unsubscribe();assert.equal(cleanups,0);b.unsubscribe();assert.equal(cleanups,1);
 });
+
+test('main valve actions use explicit services and respect capabilities',()=>{
+  const config={main_valve_entity:'valve.main'};
+  const action=(state,features)=>overviewAction(config,{'valve.main':{state,attributes:{supported_features:features}}},'main_valve_entity');
+  assert.deepEqual(action('closed',1),{domain:'valve',service:'open_valve',entity:'valve.main'});
+  assert.equal(action('closed',2),null);assert.equal(action('opening',3),null);assert.equal(action('unknown',3),null);
+  assert.deepEqual(action('open',2),{domain:'valve',service:'close_valve',entity:'valve.main'});
+  assert.deepEqual(overviewAction({main_valve_entity:'switch.main'},{'switch.main':{state:'on'}},'main_valve_entity'),{domain:'switch',service:'turn_off',entity:'switch.main'});
+  assert.throws(()=>validateOverviewConfig({confirm_open:'false'}));assert.equal(validateOverviewConfig({}).confirm_open,true);
+});

@@ -23,7 +23,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.5.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.6.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -53,7 +53,7 @@ automation_entity: automation.meine_bewasserung
 main_valve_entity: switch.mein_hauptventil
 ```
 
-Die eigene Automation kann über die Karte aktiviert oder pausiert werden. Das Hauptventil zeigt seinen Zustand; ein Klick öffnet den nativen HA-Detaildialog. Die Regengrenze lässt sich ebenfalls über den Detaildialog bearbeiten. Der Schalter für die Regenprognose-Sperre deaktiviert bzw. aktiviert den Schutz dauerhaft bis zur nächsten Änderung. Frost- und Windgrenzen werden aus den Schutzprüfungen übernommen; deren Konfiguration erfolgt weiterhin in Smart Irrigation.
+Automatik und Hauptventil stehen direkt unter dem Kopfbereich. Ein Klick auf die Automatikfläche aktiviert oder pausiert sie, auch beim Status **Automatik pausiert**. Die Hauptventilfläche öffnet oder schließt den zugewiesenen Switch beziehungsweise das Valve direkt, ohne More-Info-Dialog. Die bisherigen unteren Zeilen entfallen. Öffnen wird standardmäßig bestätigt (`confirm_open: false` schaltet die Bestätigung ab); Schließen erfolgt direkt. Bei unbekanntem oder bewegtem Ventil ist die Steuerung deaktiviert; unterstützte Ventilfunktionen werden berücksichtigt. Die Regengrenze lässt sich ebenfalls über den Detaildialog bearbeiten. Der Schalter für die Regenprognose-Sperre deaktiviert bzw. aktiviert den Schutz dauerhaft bis zur nächsten Änderung. Frost- und Windgrenzen werden aus den Schutzprüfungen übernommen; deren Konfiguration erfolgt weiterhin in Smart Irrigation.
 
 **Planung ist kein garantierter Lauf:** Die Vorschau stammt aus der Integrationsplanung. Ein Startzeitpunkt allein bedeutet nicht, dass der Start vorgemerkt ist. Eigene Automationen können andere Regeln anwenden als die Vorschau. Ohne zugewiesene `automation_entity` kennt die Karte deren Aktivierungszustand nicht; sie errät keine Automation. Direkte Ventilläufe werden nur anhand der von Smart Irrigation gemeldeten aktiven Läufe als Bewässerung aktiv dargestellt. Die Karte startet selbst keinen Bewässerungslauf.
 
@@ -64,12 +64,13 @@ Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung au
 | `name` | `Bewässerung` / `Irrigation` | Titel |
 | `icon` | `mdi:sprinkler-variant` | Symbol |
 | `automation_entity` | optional | Eigene `automation.*`; Zustand und Aktivieren/Pausieren |
-| `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und HA-Detaildialog |
+| `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und direktes Öffnen/Schließen oben |
 | `calculate_entity` | automatisch | Globale `button.*`-Entität für alle Berechnungen |
 | `update_weather_entity` | automatisch | Globale `button.*`-Entität für Wetteraktualisierung |
 | `precipitation_switch_entity` | automatisch | `switch.*` für die Regenprognose-Sperre |
 | `precipitation_threshold_entity` | automatisch | `number.*` für die Regengrenze |
-| `show_actions` | `true` | Direkte Service-Schaltflächen anzeigen; HA-Detaildialoge bleiben erreichbar |
+| `show_actions` | `true` | Direkte Steuerung einschließlich oberer Automatik-/Hauptventilflächen anzeigen; ausgeschaltet bleibt deren Zustand sichtbar |
+| `confirm_open` | `true` | Vor manuellem Öffnen des Hauptventils bestätigen |
 | `language` | `auto` | `auto`, `de`, `en` |
 
 Voraussetzung sind die Smart-Irrigation-Endpunkte `smart_irrigation/info`, `smart_irrigation/config` und `smart_irrigation/zones` sowie Zugriff auf das Entity-Registry. Geprüft mit v2026.10.8. Die Karte lädt die Planung bei Integrationsänderungen, relevanten Zustandsänderungen, Wiederverbindung und einmal pro Minute nach, solange sie angezeigt wird. Mehrere zentrale Karten teilen sich die Planungsabfragen; mit den Zonenkarten teilen sie sich die Zonen-/Registry-Abfragen. Abonnements und Timer werden beim Entfernen aufgeräumt.
@@ -178,9 +179,17 @@ Die Werte werden bei Konfigurationsänderungen neu gelesen; die Schutzvorschau a
 
 ### Ventilsteuerung
 
+Das Zonenventil ist oben neben dem Bedarfsstatus integriert, vor den Messwerten. Die separate Zeile am unteren Kartenrand entfällt. Mit `show_control: false` wird die Schaltfläche ausgeblendet; der Zustand bleibt sichtbar.
+
 Die Karte ruft `switch.turn_on`/`switch.turn_off` beziehungsweise `valve.open_valve`/`valve.close_valve` für genau die konfigurierte Entität auf. Bei Valves berücksichtigt sie die gemeldeten OPEN-/CLOSE-Funktionen. Bei unbekanntem Zustand oder bewegtem Ventil ist die Schaltfläche deaktiviert. Fehler werden in der Karte angezeigt; der Zustand kommt weiter von Home Assistant.
 
-**Manuelles Öffnen startet keinen Abschalttimer und keine Smart-Irrigation-Automation.** Ein geöffnetes Ventil muss manuell oder durch eine bestehende Automation geschlossen werden. Daher gibt es standardmäßig eine Bestätigung beim Öffnen. Schließen ist direkt möglich. Mit `show_control: false` wird nur der Zustand dargestellt. Die Karte schreibt keine Smart-Irrigation-Bilanz zurück und verändert keine Automationen.
+**Die Karte startet beim manuellen Öffnen keinen eigenen Abschalttimer und keine Smart-Irrigation-Automation.** Externe Sicherheitsautomationen und Gerätetimer bleiben wirksam. Der Hinweis lautet deshalb „Manuell · kein Kartentimer“ und steht im Tooltip sowie in der Öffnungsbestätigung. Ein geöffnetes Ventil muss manuell oder durch eine bestehende Automation geschlossen werden. Daher gibt es standardmäßig eine Bestätigung beim Öffnen. Schließen ist direkt möglich. Mit `show_control: false` wird nur der Zustand dargestellt. Die Karte schreibt keine Smart-Irrigation-Bilanz zurück und verändert keine Automationen.
+
+### Automatische Abschaltung konfigurieren
+
+Die Karte hat keine Einstellung für eine Abschaltdauer. Diese wird in Home Assistant über eine Sicherheitsautomation eingerichtet (beispielsweise Ventil schließen, nachdem es eine bestimmte Zeit geöffnet war) oder direkt im Ventil beziehungsweise Controller, sofern unterstützt. Für einen einstellbaren Countdown einen [Timer-Helfer](https://www.home-assistant.io/integrations/timer/) anlegen, beim Öffnen starten und beim Ablauf per Automation das Ventil schließen. Ein Timer allein schaltet kein Ventil.
+
+Berechnete Dauer und Laufzeitlimit aus Smart Irrigation gelten für den jeweiligen Bewässerungslauf beziehungsweise dessen Automation. Sie starten keinen Timer für die direkten `switch.turn_on`-/`valve.open_valve`-Aufrufe dieser Karte. Die Abschaltung gehört in Home Assistant oder ins Gerät, damit das Schließen des Dashboards sie nicht beendet.
 
 ## Entwicklung und Vorschau
 
@@ -206,7 +215,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 24 Logiktests und 23 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 25 Logiktests und 26 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 
