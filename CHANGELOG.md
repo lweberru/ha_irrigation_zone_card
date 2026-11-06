@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 — 2026-11-06
+
+- Distinguish disabled native control, unknown configuration, missing native buttons, and unavailable configured buttons in both cards.
+- When native control is already enabled, explain that missing buttons require integration setup/reload instead of incorrectly asking users to enable it again.
+- 31 logic tests and 35 browser checks, including the enabled-with-missing-button regression.
+
 ## 0.7.0 — 2026-11-06
 
 - Add a native Smart Irrigation direct-control switch to the overview. It changes only the integration setting, confirms enabling and reads back the result; it is explicitly not an emergency stop. Optional `show_native_control` and `confirm_native`.

@@ -31,7 +31,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.7.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.7.1` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -218,7 +218,7 @@ show_irrigate: true # berechneten Lauf bei Smart Irrigation anfordern
 
 In der Zentrale bietet `show_irrigate: true` entsprechend **Alle Zonen bewässern** an. Beide Optionen können gleichzeitig eingeschaltet sein. Natives Bewässern betätigt den Integrationsbutton `smart_irrigation_<id>_irrigate_now` beziehungsweise `smart_irrigation_irrigate_all`, zugeordnet über stabile Registry-Kennungen. Dauer, Ventile, Eignung und Wasserbilanz gehören der Integration. Die Karte erstellt keinen Countdown, keine lokale Automation und keinen Ersatz für die native Steuerung. `confirm_irrigate: false` deaktiviert die separate Laufbestätigung.
 
-Die Aktion bleibt deaktiviert, solange die direkte Steuerung in der Integration nicht ausdrücklich aktiv oder ihr nativer Button nicht verfügbar ist. Erstellt die verwendete Integrationsversion diese Entitäten nur beim Laden, nach der erstmaligen Aktivierung die Smart-Irrigation-Integration und danach das Dashboard neu laden. Fehlende Buttons werden erklärt, nicht geraten. `show_irrigate` allein aktiviert weder die native Steuerung noch einen Lauf.
+Die Aktion bleibt deaktiviert, solange die direkte Steuerung in der Integration nicht ausdrücklich aktiv oder ihr nativer Button nicht verfügbar ist. Erstellt die verwendete Integrationsversion diese Entitäten nur beim Laden, nach der erstmaligen Aktivierung die Smart-Irrigation-Integration und danach das Dashboard neu laden. Einige Versionen behalten beim Neuladen den internen Zonenbutton-Cache: Erscheint nur der globale Button oder sind Zonen-Berechnungsbuttons danach nicht verfügbar, bereinigt ein vollständiger Home-Assistant-Neustart diesen Cache. Die Karte startet HA nicht automatisch neu. Fehlende Buttons werden erklärt, nicht geraten. `show_irrigate` allein aktiviert weder die native Steuerung noch einen Lauf.
 
 Eine optionale externe Automation kann die native Steuerung ergänzen: etwa das vorgeschaltete Hauptventil öffnen, sobald ein Zonenventil öffnet, und schließen, sobald alle geschlossen sind. Sie darf dieselben zeitgesteuerten Bewässerungsläufe nicht nochmals ausführen. Einbindung über `automation_entity`, optional mit `automation_name: Hauptventil-Kopplung`. Ihr Schalter ist vom nativen Integrationsschalter unabhängig. Ventilzuordnungen, unbekannte Zustände und Synchronisierung beim Start sind Teil der lokalen Automation. Haupt- und Zonenventil dürfen dabei nicht dieselbe Entität sein, sonst entsteht eine Rückkopplung.
 
@@ -254,7 +254,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 30 Logiktests und 34 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 31 Logiktests und 35 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

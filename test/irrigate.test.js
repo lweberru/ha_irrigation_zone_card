@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {irrigateAction} from '../src/irrigate.js';
+import {irrigateAction,irrigateIssue} from '../src/irrigate.js';
 import {validateConfig} from '../src/model.js';
 import {resolveZone} from '../src/discovery.js';
 import {validateOverviewConfig,resolveOverview,overviewModel} from '../src/overview-model.js';
@@ -31,4 +31,13 @@ test('native action requires explicitly enabled backend and available button; un
 test('optional external automation cannot override native integration planning status',()=>{
   const system={config:{direct_valve_control_enabled:true},info:{next_irrigation_duration:60,start_trigger_armed:true,skip_preview:{checks:[]}}};
   for(const state of ['off','unavailable'])assert.equal(overviewModel({automation_entity:'automation.extra'},{'automation.extra':{state}},system,{zones:[]}).status,'scheduled');
+});
+
+test('native diagnostics distinguish enabled-with-missing-button from disabled control',()=>{
+  const enabled={config:{direct_valve_control_enabled:true}};
+  assert.equal(irrigateIssue({}, {},enabled),'missingButton');
+  assert.equal(irrigateIssue({}, {},{config:{direct_valve_control_enabled:false}}),'enableNative');
+  assert.equal(irrigateIssue({}, {},null),'statusUnknown');
+  assert.equal(irrigateIssue({irrigate_entity:'button.run'}, {},enabled),'buttonUnavailable');
+  assert.equal(irrigateIssue({irrigate_entity:'button.run'}, {'button.run':{state:'unknown'}},enabled),null);
 });

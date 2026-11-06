@@ -98,7 +98,7 @@ test('native global run is independently configurable and targets the integratio
 });
 test('missing native global button stays disabled and cannot trigger a local automation',async({page})=>{
   const card=page.locator('irrigation-overview-card').first();await card.evaluate(card=>card.setConfig({...window.overviewConfig,show_irrigate:true}));
-  await expect(card.locator('#irrigate_entity')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Native Bewässerung nicht verfügbar');expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);
+  await expect(card.locator('#irrigate_entity')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Direkte Ventilsteuerung in Smart Irrigation aktivieren');expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);
 });
 test('native control switch confirms enabling, writes only its setting and verifies backend state',async({page})=>{
   const card=page.locator('irrigation-overview-card').first();await expect(card.locator('#native_control')).toContainText('Native Steuerung aus');
@@ -115,4 +115,8 @@ test('native control failures preserve reported backend state and the control ca
   await card.evaluate(card=>{card._hass.callApi=async()=>({});});
   await card.locator('#native_control').click();await expect(card.getByRole('alert')).toContainText('nicht bestätigt');
   await card.evaluate(card=>card.setConfig({...card._config,show_native_control:false}));await expect(card.locator('#native_control')).toHaveCount(0);
+});
+test('enabled native control with a missing button asks for reload instead of activation',async({page})=>{
+  await page.evaluate(async()=>{const card=document.querySelector('irrigation-overview-card');card.setConfig({...window.overviewConfig,show_irrigate:true});window.overviewData[0].config.direct_valve_control_enabled=true;await card._systemReader.refresh();});
+  const card=page.locator('irrigation-overview-card').first();await expect(card.locator('#irrigate_entity')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Native Steuerung ist aktiv');await expect(card.locator('.irrigate-control')).toContainText('einmal neu laden');await expect(card.locator('.irrigate-control')).not.toContainText('aktivieren');
 });

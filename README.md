@@ -33,7 +33,7 @@ The repository provides the ready-to-use bundle at `dist/ha_irrigation_zone_card
 
 ### Manual installation / local development
 
-Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.7.0` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
+Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.7.1` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
 
 ## Central card: Irrigation Overview
 
@@ -220,7 +220,7 @@ show_irrigate: true # request the calculated run from Smart Irrigation
 
 For the overview, `show_irrigate: true` offers **Water all zones** instead. Both options may be enabled together. Native watering presses the integration's `smart_irrigation_<id>_irrigate_now` or `smart_irrigation_irrigate_all` button, discovered through stable registry identifiers. The integration owns duration, valve operations, eligibility and water accounting. The card creates no countdown, no local automation, and no substitute executor. `confirm_irrigate: false` disables the separate run confirmation.
 
-The native action is disabled unless direct valve control is explicitly enabled in the integration and its native button is available. If the integration version only creates these entities during setup, reload the Smart Irrigation integration after first enabling direct control, then reload the dashboard. Missing buttons are explained rather than guessed. Merely enabling `show_irrigate` never enables native control or starts watering.
+The native action is disabled unless direct valve control is explicitly enabled in the integration and its native button is available. If the integration version only creates these entities during setup, reload the Smart Irrigation integration after first enabling direct control, then reload the dashboard. Some versions retain the per-zone button cache on reload: if only the global button appears or zone calculation buttons become unavailable, a full Home Assistant restart clears that cache. The card does not restart HA automatically. Missing buttons are explained rather than guessed. Merely enabling `show_irrigate` never enables native control or starts watering.
 
 An optional external automation can complement native control, for example to open an upstream main valve whenever any downstream zone valve opens and close it once all are closed. It must not also execute the same timed watering runs. Add it through `automation_entity`, optionally with `automation_name: Main valve coupling`. Its switch is independent of the native integration switch. Valve assignments, safe handling of unavailable states, and any startup synchronization belong to that site's automation. Keep upstream and zone valve entities distinct to avoid feedback loops.
 
@@ -256,7 +256,7 @@ Checks cover configuration, units, status logic, scales, actuator actions, rende
 
 Additional checks cover zone ID `0`, stable discovery after entity IDs are renamed, manual overrides, zone changes, shared valves, shared requests, subscription cleanup, and API errors. Discovery for all three sample zones was validated against real API responses without operating valves.
 
-The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 30 logic tests and 34 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
+The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 31 logic tests and 35 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
 `src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
 
