@@ -226,3 +226,28 @@ test('zone discovery needs no local moisture sensor, valve, automation or timer'
   await expect(card.locator('.notice')).toHaveCount(0);
   expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
 });
+async function nativeZoneFixture(page){
+  await zoneFixture(page);
+  await page.evaluate(async()=>{
+    window.zoneRegistry.push({platform:'smart_irrigation',unique_id:'smart_irrigation_0_irrigate_now',entity_id:'button.zone_run'});
+    const card=document.querySelector('irrigation-zone-card');const previous=window.zoneHass.callWS;
+    window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{stored_units:'metric',direct_valve_control_enabled:true}:previous(message);
+    card.hass={...card._hass,states:{...card._hass.states,'button.zone_run':{state:'unknown',attributes:{}}}};
+    card.setConfig({zone:0,show_rules:false,show_control:false,show_irrigate:true});
+    await window.discoveryCallbacks.zones();await card._systemReader.refresh();
+  });
+}
+test('native zone run discovers renamed button, confirms and never calls raw valve services',async({page})=>{
+  await nativeZoneFixture(page);const card=page.locator('irrigation-zone-card').first();await expect(card.locator('#control')).toHaveCount(0);
+  page.once('dialog',d=>d.dismiss());await card.locator('#irrigate').click();expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
+  page.once('dialog',d=>d.accept());await card.locator('#irrigate').click();expect(await page.evaluate(()=>window.demoCalls)).toEqual([{domain:'button',service:'press',data:{entity_id:'button.zone_run'}}]);
+  await expect(card.locator('.notice')).toHaveCount(0);
+  await card.screenshot({path:'test-results/native-zone.png'});
+});
+test('native zone mode disabled or failed never falls back to manual watering',async({page})=>{
+  await nativeZoneFixture(page);const card=page.locator('irrigation-zone-card').first();
+  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:false}:{};await card._systemReader.refresh();});
+  await expect(card.locator('#irrigate')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Direkte Ventilsteuerung');expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
+  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:true}:{};await card._systemReader.refresh();card.setConfig({...card._config,confirm_irrigate:false});card._hass.callService=async()=>{throw new Error('Native run failed');};});
+  await card.locator('#irrigate').click();await expect(card.getByRole('alert')).toContainText('Native run failed');await expect(card.locator('.status')).toHaveText('Kein Wasserbedarf');
+});

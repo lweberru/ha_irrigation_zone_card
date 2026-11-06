@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — 2026-11-06
+
+- Add a native Smart Irrigation direct-control switch to the overview. It changes only the integration setting, confirms enabling and reads back the result; it is explicitly not an emergency stop. Optional `show_native_control` and `confirm_native`.
+- Add independent `show_control` / `show_irrigate` options in both cards. Native watering requests the integration's zone/global button, never a local automation or raw valve fallback. Native runs require direct control and an available button.
+- Discover native buttons through stable registry IDs; support optional `irrigate_entity` and `confirm_irrigate`. Explain disabled actions, preserve errors, and provide visual-editor fields in English and German.
+- Allow an optional external automation label (`automation_name`). A paused external helper no longer overrides native integration planning status.
+- Document complementary upstream main-valve automations and setup-only native button availability. 30 logic tests and 34 browser checks.
+
 ## 0.6.0 — 2026-11-04
 
 - Move automation and main valve controls to the top of the overview card. The paused automation is directly clickable; the main valve opens/closes without a more-info dialog. Remove their duplicate lower settings rows.

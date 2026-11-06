@@ -101,4 +101,8 @@ button:disabled { cursor:default; opacity:.55; }
 .zone-summary .control-title { font-size:10px; max-width:105px; line-height:1.5; color:var(--secondary-text-color,#77877f); }
 .zone-summary .control button { padding:10px; font-size:11px; }
 @container(max-width:280px) { .zone-summary { flex-wrap:wrap; } .zone-summary .control { flex:1; } }
+
+.irrigate-control { margin-top:14px; }
+.irrigate-control button { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:12px; border:1px solid color-mix(in srgb,var(--iz-blue) 30%,transparent); border-radius:14px; background:color-mix(in srgb,var(--iz-blue) 10%,transparent); color:var(--iz-blue); font-size:12px; font-weight:650; }
+.irrigate-control small { display:block; margin-top:4px; font-size:10px; font-weight:400; }
 `;

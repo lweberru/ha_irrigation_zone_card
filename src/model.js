@@ -1,4 +1,4 @@
-export const entityKeys = ['entity', 'irrigation_needed_entity', 'bucket_entity', 'water_used_entity', 'moisture_entity', 'valve_entity', 'et_entity', 'problem_entity'];
+export const entityKeys = ['entity', 'irrigation_needed_entity', 'bucket_entity', 'water_used_entity', 'moisture_entity', 'valve_entity', 'et_entity', 'problem_entity', 'irrigate_entity'];
 
 export function numeric(value) {
   if (value === null || value === undefined || String(value).trim() === '') return null;
@@ -29,17 +29,18 @@ export function validateConfig(config) {
   for (const key of ['bucket_entity', 'water_used_entity', 'moisture_entity', 'et_entity']) {
     if (config[key] && !config[key].startsWith('sensor.')) throw new Error(`${key} must be a sensor.`);
   }
+  if (config.irrigate_entity && !config.irrigate_entity.startsWith('button.')) throw new Error('irrigate_entity must be a button.');
   for (const key of ['bucket_min', 'bucket_max']) {
     if (config[key] !== undefined && (typeof config[key] !== 'number' || !Number.isFinite(config[key]))) throw new Error(`${key} must be a finite number.`);
   }
   if (config.bucket_min !== undefined && config.bucket_min >= 0) throw new Error('bucket_min must be below zero.');
   if (config.bucket_max !== undefined && config.bucket_max <= 0) throw new Error('bucket_max must be above zero.');
-  for (const key of ['show_control', 'confirm_open', 'show_rules']) {
+  for (const key of ['show_control', 'confirm_open', 'show_rules', 'show_irrigate', 'confirm_irrigate']) {
     if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
   }
   if (config.language !== undefined && !['auto', 'de', 'en'].includes(config.language)) throw new Error('language must be auto, de or en.');
   for (const key of ['name', 'icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
-  return { show_control: true, confirm_open: true, show_rules:true, ...config };
+  return { show_control: true, confirm_open: true, show_rules:true, show_irrigate:false, confirm_irrigate:true, ...config };
 }
 
 export function valveAction(entityId, state, features = 3) {

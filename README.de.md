@@ -31,7 +31,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.6.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.7.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -63,7 +63,7 @@ main_valve_entity: switch.mein_hauptventil
 
 Automatik und Hauptventil stehen direkt unter dem Kopfbereich. Ein Klick auf die Automatikfläche aktiviert oder pausiert sie, auch beim Status **Automatik pausiert**. Die Hauptventilfläche öffnet oder schließt den zugewiesenen Switch beziehungsweise das Valve direkt, ohne More-Info-Dialog. Die bisherigen unteren Zeilen entfallen. Öffnen wird standardmäßig bestätigt (`confirm_open: false` schaltet die Bestätigung ab); Schließen erfolgt direkt. Bei unbekanntem oder bewegtem Ventil ist die Steuerung deaktiviert; unterstützte Ventilfunktionen werden berücksichtigt. Die Regengrenze lässt sich ebenfalls über den Detaildialog bearbeiten. Der Schalter für die Regenprognose-Sperre deaktiviert bzw. aktiviert den Schutz dauerhaft bis zur nächsten Änderung. Frost- und Windgrenzen werden aus den Schutzprüfungen übernommen; deren Konfiguration erfolgt weiterhin in Smart Irrigation.
 
-**Planung ist kein garantierter Lauf:** Die Vorschau stammt aus der Integrationsplanung. Ein Startzeitpunkt allein bedeutet nicht, dass der Start vorgemerkt ist. Eigene Automationen können andere Regeln anwenden als die Vorschau. Ohne zugewiesene `automation_entity` kennt die Karte deren Aktivierungszustand nicht; sie errät keine Automation. Direkte Ventilläufe werden nur anhand der von Smart Irrigation gemeldeten aktiven Läufe als Bewässerung aktiv dargestellt. Die Karte startet selbst keinen Bewässerungslauf.
+**Planung ist kein garantierter Lauf:** Die Vorschau stammt aus der Integrationsplanung. Ein Startzeitpunkt allein bedeutet nicht, dass der Start vorgemerkt ist. Eigene Automationen können andere Regeln anwenden als die Vorschau. Ohne zugewiesene `automation_entity` kennt die Karte deren Aktivierungszustand nicht; sie errät keine Automation. Direkte Ventilläufe werden nur anhand der von Smart Irrigation gemeldeten aktiven Läufe als Bewässerung aktiv dargestellt. Standardmäßig zeigt die Karte die Planung; die optionale native Bewässerungsaktion fordert einen Lauf bei Smart Irrigation an.
 
 Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung aus `skip_preview` an. Ein fehlender Temperaturwert wird ausdrücklich als unbekannt dargestellt. Ein ausgeschalteter Frostschutz erhält einen entsprechenden Hinweis, keine Freigabeanzeige.
 
@@ -71,12 +71,19 @@ Der Frostbereich erfindet keine eigene Frostgrenze. Er zeigt die Entscheidung au
 | --- | --- | --- |
 | `name` | `Bewässerung` / `Irrigation` | Titel |
 | `icon` | `mdi:sprinkler-variant` | Symbol |
+| `automation_name` | optional | Eigene Bezeichnung der optionalen Automation, z. B. Hauptventil-Kopplung |
 | `automation_entity` | optional | Eigene `automation.*`; Zustand und Aktivieren/Pausieren |
 | `main_valve_entity` | optional | `switch.*` oder `valve.*`; Zustand und direktes Öffnen/Schließen oben |
 | `calculate_entity` | automatisch | Globale `button.*`-Entität für alle Berechnungen |
 | `update_weather_entity` | automatisch | Globale `button.*`-Entität für Wetteraktualisierung |
 | `precipitation_switch_entity` | automatisch | `switch.*` für die Regenprognose-Sperre |
 | `precipitation_threshold_entity` | automatisch | `number.*` für die Regengrenze |
+| `show_native_control` | `true` | Native Smart-Irrigation-Ventilsteuerung oben anzeigen |
+| `confirm_native` | `true` | Aktivierung der nativen Steuerung bestätigen |
+| `show_control` | `true` | Hauptventil direkt steuern; false erhält die Zustandsanzeige |
+| `show_irrigate` | `false` | Native Aktion Alle Zonen bewässern anzeigen |
+| `confirm_irrigate` | `true` | Nativen Bewässerungslauf bestätigen |
+| `irrigate_entity` | automatisch | Optionale Überschreibung des nativen globalen Bewässerungsbuttons |
 | `show_actions` | `true` | Direkte Steuerung einschließlich oberer Automatik-/Hauptventilflächen anzeigen; ausgeschaltet bleibt deren Zustand sichtbar |
 | `confirm_open` | `true` | Vor manuellem Öffnen des Hauptventils bestätigen |
 | `language` | `auto` | `auto`, `de`, `en` |
@@ -155,6 +162,9 @@ Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlä
 | `et_entity` | optional / mit `zone` automatisch | Sensor für angewandte ET (`et_value`) |
 | `problem_entity` | optional / mit `zone` automatisch | `binary_sensor` für Zonenprobleme (`problem`) |
 | `valve_entity` | optional | `switch.*` oder `valve.*` |
+| `show_irrigate` | `false` | Natives Jetzt bewässern unabhängig vom manuellen Ventilschalter anzeigen |
+| `confirm_irrigate` | `true` | Nativen Bewässerungslauf bestätigen |
+| `irrigate_entity` | mit `zone` automatisch | Optionaler nativer `button.*`; kein Ersatz durch Automation oder Ventilaufruf |
 | `show_rules` | `true` | Bewässerungsregeln und gemeldete Sperren bei Konfiguration mit `zone` anzeigen |
 | `show_control` | `true` | Manuelle Schaltfläche am Ventil anzeigen |
 | `confirm_open` | `true` | Bestätigung vor manuellem Öffnen |
@@ -193,6 +203,27 @@ Die Karte ruft `switch.turn_on`/`switch.turn_off` beziehungsweise `valve.open_va
 
 **Die Karte startet beim manuellen Öffnen keinen eigenen Abschalttimer und keine Smart-Irrigation-Automation.** Externe Sicherheitsautomationen und Gerätetimer bleiben wirksam. Der Hinweis lautet deshalb „Manuell · kein Kartentimer“ und steht im Tooltip sowie in der Öffnungsbestätigung. Ein geöffnetes Ventil muss manuell oder durch eine bestehende Automation geschlossen werden. Daher gibt es standardmäßig eine Bestätigung beim Öffnen. Schließen ist direkt möglich. Mit `show_control: false` wird nur der Zustand dargestellt. Die Karte schreibt keine Smart-Irrigation-Bilanz zurück und verändert keine Automationen.
 
+### Native Steuerung und zeitgesteuerte Bewässerung
+
+Die native Steuerungsfläche der Zentrale ändert über die Konfigurations-API **nur** `direct_valve_control_enabled` in Smart Irrigation. Aktivieren wird standardmäßig bestätigt; der angezeigte Zustand wird aus der Integration zurückgelesen. Gesteuert werden künftige native Läufe, nicht Berechnung/Wetter und nicht eine externe Automation. **Deaktivieren ist kein Not-Aus für einen bereits laufenden Durchgang.** Mit `show_native_control: false` entfällt die Fläche; mit `show_actions: false` bleibt sie rein lesend.
+
+Direktes Ventilschalten und natives Bewässern sind in beiden Karten unabhängig konfigurierbar:
+
+```yaml
+type: custom:irrigation-zone-card
+zone: 0
+show_control: false  # direkten Öffnen-/Schließen-Schalter ausblenden
+show_irrigate: true # berechneten Lauf bei Smart Irrigation anfordern
+```
+
+In der Zentrale bietet `show_irrigate: true` entsprechend **Alle Zonen bewässern** an. Beide Optionen können gleichzeitig eingeschaltet sein. Natives Bewässern betätigt den Integrationsbutton `smart_irrigation_<id>_irrigate_now` beziehungsweise `smart_irrigation_irrigate_all`, zugeordnet über stabile Registry-Kennungen. Dauer, Ventile, Eignung und Wasserbilanz gehören der Integration. Die Karte erstellt keinen Countdown, keine lokale Automation und keinen Ersatz für die native Steuerung. `confirm_irrigate: false` deaktiviert die separate Laufbestätigung.
+
+Die Aktion bleibt deaktiviert, solange die direkte Steuerung in der Integration nicht ausdrücklich aktiv oder ihr nativer Button nicht verfügbar ist. Erstellt die verwendete Integrationsversion diese Entitäten nur beim Laden, nach der erstmaligen Aktivierung die Smart-Irrigation-Integration und danach das Dashboard neu laden. Fehlende Buttons werden erklärt, nicht geraten. `show_irrigate` allein aktiviert weder die native Steuerung noch einen Lauf.
+
+Eine optionale externe Automation kann die native Steuerung ergänzen: etwa das vorgeschaltete Hauptventil öffnen, sobald ein Zonenventil öffnet, und schließen, sobald alle geschlossen sind. Sie darf dieselben zeitgesteuerten Bewässerungsläufe nicht nochmals ausführen. Einbindung über `automation_entity`, optional mit `automation_name: Hauptventil-Kopplung`. Ihr Schalter ist vom nativen Integrationsschalter unabhängig. Ventilzuordnungen, unbekannte Zustände und Synchronisierung beim Start sind Teil der lokalen Automation. Haupt- und Zonenventil dürfen dabei nicht dieselbe Entität sein, sonst entsteht eine Rückkopplung.
+
+![Native Bewässerungssteuerung](docs/native-zone.png)
+
 ### Automatische Abschaltung konfigurieren
 
 Die Karte hat keine Einstellung für eine Abschaltdauer. Diese wird in Home Assistant über eine Sicherheitsautomation eingerichtet (beispielsweise Ventil schließen, nachdem es eine bestimmte Zeit geöffnet war) oder direkt im Ventil beziehungsweise Controller, sofern unterstützt. Für einen einstellbaren Countdown einen [Timer-Helfer](https://www.home-assistant.io/integrations/timer/) anlegen, beim Öffnen starten und beim Ablauf per Automation das Ventil schließen. Ein Timer allein schaltet kein Ventil.
@@ -223,7 +254,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 26 Logiktests und 28 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 30 Logiktests und 34 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

@@ -24,6 +24,7 @@ window.demoHass = (states = fixture()) => ({
   formatEntityState:entity=>`${new Intl.NumberFormat('de',{maximumFractionDigits:1}).format(Number(entity.state))} ${entity.attributes.unit_of_measurement || ''}`.trim(),
   callService:async(domain,service,data)=>{
     window.demoCalls.push({domain,service,data});
+    if(domain === 'button') return;
     const state = service === 'open_valve' || service === 'turn_on' ? domain === 'switch' ? 'on' : 'open' : domain === 'switch' ? 'off' : 'closed';
     const updated = {...states,[data.entity_id]:{...states[data.entity_id],state}};
     document.querySelectorAll('irrigation-zone-card').forEach(card=>{if(card._hass.states === states) card.hass = window.demoHass(updated);});

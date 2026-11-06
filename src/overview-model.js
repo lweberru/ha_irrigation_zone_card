@@ -1,7 +1,8 @@
 import { numeric, valveAction } from './model.js';
 
-export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity'];
+export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity', 'irrigate_entity'];
 const globalRoles = {
+  irrigate_entity:['button','smart_irrigation_irrigate_all'],
   calculate_entity:['button','smart_irrigation_calculate_all'],
   update_weather_entity:['button','smart_irrigation_update_weather'],
   precipitation_switch_entity:['switch','smart_irrigation_skip_irrigation_on_precipitation'],
@@ -16,9 +17,9 @@ export function validateOverviewConfig(config) {
     if (!domains.includes(config[key].split('.')[0])) throw new Error(`${key}: expected ${domains.join(' or ')}.`);
   }
   if (config.language !== undefined && !['auto','de','en'].includes(config.language)) throw new Error('language must be auto, de or en.');
-  for (const key of ['name','icon']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
-  for (const key of ['show_actions','confirm_open']) if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
-  return {show_actions:true,confirm_open:true,...config};
+  for (const key of ['name','icon','automation_name']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
+  for (const key of ['show_actions','show_control','show_irrigate','show_native_control','confirm_native','confirm_open','confirm_irrigate']) if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
+  return {show_actions:true,show_native_control:true,confirm_native:true,show_control:true,show_irrigate:false,confirm_irrigate:true,confirm_open:true,...config};
 }
 export function resolveOverview(config, discovery) {
   const result = {...config};
@@ -45,8 +46,8 @@ export function overviewModel(config, states, system, discovery) {
   let status = 'unknown';
   if (system?.error || !info || !settings) status = 'unknown';
   else if (running) status = 'running';
-  else if (automation === 'off') status = 'paused';
-  else if (config.automation_entity && automation !== 'on') status = 'unknown';
+  else if (settings.direct_valve_control_enabled !== true && automation === 'off') status = 'paused';
+  else if (settings.direct_valve_control_enabled !== true && config.automation_entity && automation !== 'on') status = 'unknown';
   else if (info.skip_preview?.should_skip === true) status = 'blocked';
   else if (duration === 0) status = 'noDemand';
   else if (duration > 0) status = info.start_trigger_armed === true ? 'scheduled' : 'demand';

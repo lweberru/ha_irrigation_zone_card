@@ -11,12 +11,13 @@ export const systemFixture=()=>({
   zones:[{id:0},{id:1},{id:2}],
   registry:[['calculate_all','button.calculate_all'],['update_weather','button.update_weather'],['skip_irrigation_on_precipitation','switch.rain_protection'],['precipitation_threshold','number.rain_threshold']].map(([role,entity_id])=>({entity_id,platform:'smart_irrigation',unique_id:`smart_irrigation_${role}`})),
 });
-window.overviewCalls=[];window.overviewReads=[];window.overviewData=[];window.overviewEvents=[];
+window.overviewApiCalls=[];window.overviewCalls=[];window.overviewReads=[];window.overviewData=[];window.overviewEvents=[];
 window.overviewConfig={type:'custom:irrigation-overview-card',automation_entity:'automation.irrigation',main_valve_entity:'switch.main_valve'};
 window.overviewHass=(index,states)=>({
   language:'de',locale:{language:'de'},themes:{darkMode:document.body.classList.contains('dark')},config:{time_zone:'Europe/Berlin'},
   states:states||{'button.calculate_all':{state:'unknown',attributes:{}},'button.update_weather':{state:'unknown',attributes:{}},'switch.rain_protection':{state:'on',attributes:{}},'number.rain_threshold':{state:'2',attributes:{unit_of_measurement:'mm'}},'automation.irrigation':{state:'on',attributes:{}},'switch.main_valve':{state:'off',attributes:{}}},
   connection:window.overviewConnections[index],
+  callApi:async(method,path,data)=>{window.overviewApiCalls.push({method,path,data});Object.assign(window.overviewData[index].config,data);return {};},
   callWS:async message=>{window.overviewReads.push(message.type);return window.overviewData[index][message.type==='config/entity_registry/list'?'registry':message.type.split('/')[1]]||[];},
   formatEntityState:state=>`${new Intl.NumberFormat('de',{maximumFractionDigits:1}).format(Number(state.state))} ${state.attributes.unit_of_measurement||''}`.trim(),
   callService:async(domain,service,data)=>{

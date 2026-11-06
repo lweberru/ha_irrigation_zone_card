@@ -74,9 +74,45 @@ test('minimal overview works with Smart Irrigation alone and does not request lo
   });
   const card=page.locator('irrigation-overview-card').first();
   await expect(card.locator('.system-status')).toHaveText('Start vorgemerkt');
-  await expect(card.locator('.top-controls')).toHaveCount(0);
+  await expect(card.locator('#automation_entity')).toHaveCount(0);await expect(card.locator('#main_valve_entity')).toHaveCount(0);await expect(card.locator('#native_control')).toHaveCount(1);
   await expect(card.locator('.notice')).toHaveCount(0);
   await expect(card.locator('.frost')).toContainText('11,7°C');
   await card.getByRole('button',{name:'Alle berechnen',exact:true}).click();
   expect(await page.evaluate(()=>window.overviewCalls)).toEqual([{domain:'button',service:'press',data:{entity_id:'button.calculate_all'}}]);
+});
+
+async function nativeOverviewFixture(page){
+  await page.evaluate(async()=>{
+    window.overviewData[0].config.direct_valve_control_enabled=true;
+    window.overviewData[0].registry.push({platform:'smart_irrigation',unique_id:'smart_irrigation_irrigate_all',entity_id:'button.all_native'});
+    const card=document.querySelector('irrigation-overview-card');card.hass={...card._hass,states:{...card._hass.states,'button.all_native':{state:'unknown',attributes:{}}}};
+    card.setConfig({...window.overviewConfig,show_control:false,show_irrigate:true});
+    await Promise.all(window.overviewEvents[0].map(cb=>cb()));
+  });
+}
+test('native global run is independently configurable and targets the integration button',async({page})=>{
+  await nativeOverviewFixture(page);const card=page.locator('irrigation-overview-card').first();await expect(card.locator('#main_valve_entity')).toHaveCount(0);
+  page.once('dialog',d=>d.accept());await card.locator('#irrigate_entity').click();expect(await page.evaluate(()=>window.overviewCalls)).toEqual([{domain:'button',service:'press',data:{entity_id:'button.all_native'}}]);
+  await card.screenshot({path:'test-results/native-overview.png'});
+  await card.evaluate(card=>card.setConfig({...card._config,show_actions:false}));await expect(card.locator('[data-action]')).toHaveCount(0);await expect(card.locator('#irrigate_entity')).toHaveCount(0);
+});
+test('missing native global button stays disabled and cannot trigger a local automation',async({page})=>{
+  const card=page.locator('irrigation-overview-card').first();await card.evaluate(card=>card.setConfig({...window.overviewConfig,show_irrigate:true}));
+  await expect(card.locator('#irrigate_entity')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Native Bewässerung nicht verfügbar');expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);
+});
+test('native control switch confirms enabling, writes only its setting and verifies backend state',async({page})=>{
+  const card=page.locator('irrigation-overview-card').first();await expect(card.locator('#native_control')).toContainText('Native Steuerung aus');
+  page.once('dialog',d=>d.dismiss());await card.locator('#native_control').click();expect(await page.evaluate(()=>window.overviewApiCalls)).toEqual([]);
+  page.once('dialog',d=>d.accept());await card.locator('#native_control').click();await expect(card.locator('#native_control')).toContainText('Native Steuerung aktiv');
+  expect(await page.evaluate(()=>window.overviewApiCalls)).toEqual([{method:'POST',path:'smart_irrigation/config',data:{direct_valve_control_enabled:true}}]);
+  await card.locator('#native_control').click();await expect(card.locator('#native_control')).toContainText('Native Steuerung aus');
+  expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);
+});
+test('native control failures preserve reported backend state and the control can be hidden',async({page})=>{
+  const card=page.locator('irrigation-overview-card').first();
+  await card.evaluate(card=>{card.setConfig({...card._config,confirm_native:false});card._hass.callApi=async()=>{throw new Error('Config denied');};});
+  await card.locator('#native_control').click();await expect(card.getByRole('alert')).toContainText('Config denied');await expect(card.locator('#native_control')).toContainText('Native Steuerung aus');
+  await card.evaluate(card=>{card._hass.callApi=async()=>({});});
+  await card.locator('#native_control').click();await expect(card.getByRole('alert')).toContainText('nicht bestätigt');
+  await card.evaluate(card=>card.setConfig({...card._config,show_native_control:false}));await expect(card.locator('#native_control')).toHaveCount(0);
 });

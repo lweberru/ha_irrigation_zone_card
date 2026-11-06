@@ -5,8 +5,8 @@ const labels = {
   de: { entity:'Berechnete Dauer (Smart Irrigation)', name:'Zonenname', icon:'Symbol', irrigation_needed_entity:'Bewässerung nötig', bucket_entity:'Wasserbilanz (live)', water_used_entity:'Wasserverbrauch', moisture_entity:'Bodenfeuchte', valve_entity:'Ventil (optional)', bucket_min:'Wasserbilanz: Skalenminimum (< 0)', bucket_max:'Wasserbilanz: Skalenmaximum (> 0)', show_control:'Manuelle Ventilsteuerung anzeigen', confirm_open:'Vor manuellem Öffnen bestätigen', language:'Sprache' },
   en: { entity:'Calculated duration (Smart Irrigation)', name:'Zone name', icon:'Icon', irrigation_needed_entity:'Irrigation needed', bucket_entity:'Water balance (live)', water_used_entity:'Water used', moisture_entity:'Soil moisture', valve_entity:'Valve (optional)', bucket_min:'Water balance: scale minimum (< 0)', bucket_max:'Water balance: scale maximum (> 0)', show_control:'Show manual valve control', confirm_open:'Confirm before opening manually', language:'Language' },
 };
-Object.assign(labels.de, { show_rules:'Bewässerungsregeln anzeigen', zone:'Smart-Irrigation-Zone', overrides:'Sensoren überschreiben (optional)', et_entity:'Angewandte ET', problem_entity:'Zonenproblem' });
-Object.assign(labels.en, { show_rules:'Show irrigation rules', zone:'Smart Irrigation zone', overrides:'Override sensors (optional)', et_entity:'Applied ET', problem_entity:'Zone problem' });
+Object.assign(labels.de, { show_irrigate:'Jetzt bewässern anzeigen (Smart Irrigation)',confirm_irrigate:'Vor Bewässerungslauf bestätigen',irrigate_entity:'Jetzt bewässern (nativer Button, optional)',show_rules:'Bewässerungsregeln anzeigen', zone:'Smart-Irrigation-Zone', overrides:'Sensoren überschreiben (optional)', et_entity:'Angewandte ET', problem_entity:'Zonenproblem' });
+Object.assign(labels.en, { show_irrigate:'Show water now (Smart Irrigation)',confirm_irrigate:'Confirm before starting a watering run',irrigate_entity:'Water now (native button, optional)',show_rules:'Show irrigation rules', zone:'Smart Irrigation zone', overrides:'Override sensors (optional)', et_entity:'Applied ET', problem_entity:'Zone problem' });
 class IrrigationZoneEditor extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:'open'}); }
   setConfig(config) { this._config = {...config}; this._render(); }
@@ -50,17 +50,17 @@ class IrrigationZoneEditor extends HTMLElement {
     this._form.schema = [
         {name:'zone',selector:{select:{options}}},
         {name:'name',selector:{text:{}}}, {name:'icon',selector:{icon:{}}},
-        {name:'show_rules',selector:{boolean:{}}}, {name:'show_control',selector:{boolean:{}}}, {name:'confirm_open',selector:{boolean:{}}},
+        {name:'show_irrigate',selector:{boolean:{}}},{name:'confirm_irrigate',selector:{boolean:{}}},{name:'show_rules',selector:{boolean:{}}}, {name:'show_control',selector:{boolean:{}}}, {name:'confirm_open',selector:{boolean:{}}},
         {name:'language',selector:{select:{options:[{value:'auto',label:'Auto'},{value:'de',label:'Deutsch'},{value:'en',label:'English'}]}}},
     ];
     this._overrides.schema = [
-        ...entityKeys.map(name=>({name,required:name === 'entity' && !hasZone(this._config),selector:{entity:{domain:name === 'valve_entity' ? ['switch','valve'] : ['irrigation_needed_entity','problem_entity'].includes(name) ? 'binary_sensor' : 'sensor'}}})),
+        ...entityKeys.map(name=>({name,required:name === 'entity' && !hasZone(this._config),selector:{entity:{domain:name === 'irrigate_entity' ? 'button' : name === 'valve_entity' ? ['switch','valve'] : ['irrigation_needed_entity','problem_entity'].includes(name) ? 'binary_sensor' : 'sensor'}}})),
         {name:'bucket_min',selector:{number:{mode:'box',min:-10000,max:-0.01,step:'any'}}},
         {name:'bucket_max',selector:{number:{mode:'box',min:0.01,max:10000,step:'any'}}},
       ];
     for (const form of [this._form,this._overrides]) {
       form.hass = this._hass;
-      form.data = {show_rules:true,show_control:true,confirm_open:true,language:'auto',...this._config,zone:hasZone(this._config) ? String(this._config.zone) : ''};
+      form.data = {show_irrigate:false,confirm_irrigate:true,show_rules:true,show_control:true,confirm_open:true,language:'auto',...this._config,zone:hasZone(this._config) ? String(this._config.zone) : ''};
       form.computeLabel = label;
     }
     this.shadowRoot.querySelector('summary').textContent = label({name:'overrides'});

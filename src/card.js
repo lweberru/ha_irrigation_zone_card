@@ -1,3 +1,4 @@
+import { irrigateAction, irrigateText } from './irrigate.js';
 import { watchOverview } from './overview-data.js';
 import { zoneRules, ruleLabels } from './rules.js';
 import { styles } from './styles.js';
@@ -35,7 +36,7 @@ export class IrrigationZoneCard extends HTMLElement {
   }
   _watchRules() {
     const connection = this._hass?.connection || this._hass;
-    const enabled = this.isConnected && hasZone(this._config) && this._config.show_rules !== false && this._hass?.callWS;
+    const enabled = this.isConnected && this._config && ((hasZone(this._config) && this._config.show_rules !== false) || this._config.show_irrigate) && this._hass?.callWS;
     if (!enabled || connection !== this._systemConnection) {
       this._systemReader?.unsubscribe(); this._systemReader = null; this._systemConnection = null; this._system = null;
     }
@@ -92,6 +93,16 @@ export class IrrigationZoneCard extends HTMLElement {
     return this._hass.formatEntityState ? this._hass.formatEntityState(state) : `${state.state} ${state.attributes?.unit_of_measurement || ''}`.trim();
   }
   _more(id) { if (id) this.dispatchEvent(new CustomEvent('hass-more-info', { detail:{entityId:id}, bubbles:true, composed:true })); }
+  async _irrigate() {
+    if (this._pending) return;
+    const config = this._resolved();
+    const action = irrigateAction(config, this._hass.states, this._system);
+    if (!action || (config.confirm_irrigate && !window.confirm(`${config._sharedValve ? this._t.sharedValve + ': ' : ''}${this._it.confirm}`))) return;
+    this._pending = true; this._error = ''; this._render();
+    try { await this._hass.callService(action.domain, action.service, {entity_id:action.entity}); }
+    catch (error) { this._error = `${this._t.failed} ${error?.message || ''}`; }
+    finally { this._pending = false; this._render(); }
+  }
   async _control() {
     if (this._pending) return;
     const config = this._resolved();
@@ -113,11 +124,12 @@ export class IrrigationZoneCard extends HTMLElement {
     const config = this._resolved();
     const lang = config.language === 'auto' || !config.language ? this._hass.language : config.language;
     const t = this._t = translations[lang?.startsWith('de') ? 'de' : 'en'];
+    const it = this._it = irrigateText[lang?.startsWith('de') ? 'de' : 'en'];
     const m = zoneModel(config, this._hass.states);
     const name = config.name || m.main?.attributes?.friendly_name?.replace(/ (Dauer|Duration)$/i,'') || 'Smart Irrigation';
     const duration = durationParts(m.main);
     const durationHTML = duration ? `${escape(this._number(duration.value))} <small>${escape(duration.unit)}${duration.remainder ? ` ${duration.remainder} ${duration.remainderUnit}` : ''}</small>` : '—';
-    const missing = entityKeys.filter(key => config[key] && (!this._hass.states[config[key]] || ['unknown','unavailable'].includes(this._hass.states[config[key]].state)));
+    const missing = entityKeys.filter(key => config[key] && (!this._hass.states[config[key]] || this._hass.states[config[key]].state === 'unavailable' || (this._hass.states[config[key]].state === 'unknown' && key !== 'irrigate_entity')));
     const valveState = { on:t.on, open:t.on, off:t.off, closed:t.off, opening:t.opening, closing:t.closing }[m.valve?.state] || t.unavailable;
     const close = ['turn_off','close_valve'].includes(m.action?.service);
     const moistureUnit = this._hass.states[config.moisture_entity]?.attributes?.unit_of_measurement || '';
@@ -128,6 +140,7 @@ export class IrrigationZoneCard extends HTMLElement {
       <header><div class="zone-icon">${icon(config.icon || 'mdi:sprinkler-variant')}</div><div class="heading"><div class="eyebrow">${escape(t.zone)}</div><h2>${escape(name)}</h2></div><button class="more" aria-label="${escape(t.details)}">${icon('mdi:dots-horizontal')}</button></header>
       ${m.problem === 'active' || m.problem === 'unknown' ? `<div class="problem-banner ${m.problem}" role="${m.problem === 'active' ? 'alert' : 'status'}"><${config.problem_entity ? 'button' : 'div'} class="problem-content" ${config.problem_entity ? `data-entity="${escape(config.problem_entity)}"` : ''}>${icon(m.problem === 'active' ? 'mdi:alert-circle-outline' : 'mdi:help-circle-outline')}<span><strong>${escape(m.problem === 'active' ? t.problem : t.problemUnknown)}</strong><span>${escape(m.problem === 'active' ? problemText : t.problemUnknownDetail)}</span></span></${config.problem_entity ? 'button' : 'div'}></div>` : ''}
       <div class="zone-summary"><div class="status ${m.status}" role="status"><span class="dot"></span>${escape(t[m.status])}</div>${config.valve_entity ? `<div class="control" title="${escape(t.manual)}">${icon(m.active ? 'mdi:pipe-valve' : 'mdi:valve-closed')}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} · ${escape(valveState)}</div></div>${config.show_control ? `<button id="control" class="${close ? 'close' : ''}" ${!m.action || this._pending ? 'disabled' : ''}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ''}</div>` : ''}</div>
+      ${config.show_irrigate ? `<div class="irrigate-control"><button id="irrigate" ${!irrigateAction(config,this._hass.states,this._system) || this._pending ? 'disabled' : ''}>${icon('mdi:sprinkler')}<span>${escape(this._pending ? t.pending : it.now)}<small>${escape(it.detail)}</small></span></button>${!irrigateAction(config,this._hass.states,this._system) ? `<div class="rule-note">${escape(it.unavailable)}</div>` : ''}</div>` : ''}
       ${config.moisture_entity || config.bucket_entity ? `<div class="overview">
         ${config.moisture_entity ? `<button class="ring ring-button" data-entity="${escape(config.moisture_entity)}" aria-label="${escape(t.moisture + ': ' + this._state(config.moisture_entity))}">
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="54" fill="none" stroke-width="5"/><circle class="arc" cx="60" cy="60" r="54" fill="none" stroke-width="5" pathLength="100" stroke-dasharray="${m.moistureFill} 100"/></svg>
@@ -151,6 +164,7 @@ export class IrrigationZoneCard extends HTMLElement {
     </div></ha-card>`;
     this.shadowRoot.querySelector('.more').addEventListener('click',()=>this._more(config.entity));
     this.shadowRoot.querySelectorAll('[data-entity]').forEach(button=>button.addEventListener('click',()=>this._more(button.dataset.entity)));
+    this.shadowRoot.querySelector('#irrigate')?.addEventListener('click',()=>this._irrigate());
     this.shadowRoot.querySelector('#control')?.addEventListener('click',()=>this._control());
     if (focusTarget) {
       const buttons = [...this.shadowRoot.querySelectorAll('button')];
