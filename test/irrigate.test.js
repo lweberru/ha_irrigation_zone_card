@@ -41,3 +41,37 @@ test('native diagnostics distinguish enabled-with-missing-button from disabled c
   assert.equal(irrigateIssue({irrigate_entity:'button.run'}, {},enabled),'buttonUnavailable');
   assert.equal(irrigateIssue({irrigate_entity:'button.run'}, {'button.run':{state:'unknown'}},enabled),null);
 });
+test('zero committed zone duration explains the no-op and cannot dispatch watering',()=>{
+  const config={entity:'sensor.duration',show_irrigate:true,irrigate_entity:'button.run'};
+  const system={config:{direct_valve_control_enabled:true}};
+  for(const value of ['0','0.0','-1']){
+    const states={'button.run':{state:'unknown'},'sensor.duration':{state:value}};
+    assert.equal(irrigateIssue(config,states,system),'noDemand');
+    assert.equal(irrigateAction(config,states,system),null);
+  }
+  for(const value of ['120','unknown','unavailable','',undefined]){
+    assert.notEqual(irrigateAction(config,{'button.run':{state:'unknown'},'sensor.duration':{state:value}},system),null);
+  }
+});
+test('global no-demand uses committed eligible zones rather than a zero planning preview',()=>{
+  const config={show_irrigate:true,irrigate_entity:'button.run'};
+  const states={'button.run':{state:'unknown'}};
+  const system={config:{direct_valve_control_enabled:true},info:{next_irrigation_duration:0}};
+  const discovery={zones:[{id:0,duration:0,linked_entity:'valve.zone'},{id:1,duration:300,state:'disabled',linked_entity:'valve.disabled'},{id:2,duration:300}],registry:[]};
+  assert.equal(irrigateIssue(config,states,system,discovery),'noDemand');
+  assert.equal(irrigateAction(config,states,system,discovery),null);
+  discovery.zones[0].duration=120;
+  assert.notEqual(irrigateAction(config,states,system,discovery),null);
+  discovery.zones[0].duration=undefined;
+  assert.notEqual(irrigateAction(config,states,system,discovery),null);
+});
+test('global no-demand prefers live duration entities and ignores failed discovery',()=>{
+  const config={show_irrigate:true,irrigate_entity:'button.run'};
+  const system={config:{direct_valve_control_enabled:true}};
+  const states={'button.run':{state:'unknown'},'sensor.renamed':{state:'120'}};
+  const discovery={zones:[{id:0,duration:0,linked_entity:'valve.zone'}],registry:[{platform:'smart_irrigation',unique_id:'smart_irrigation_0_duration',entity_id:'sensor.renamed'}]};
+  assert.notEqual(irrigateAction(config,states,system,discovery),null);
+  states['sensor.renamed'].state='0';
+  assert.equal(irrigateIssue(config,states,system,discovery),'noDemand');
+  assert.notEqual(irrigateAction(config,states,system,{...discovery,error:true}),null);
+});

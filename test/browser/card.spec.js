@@ -233,6 +233,7 @@ async function nativeZoneFixture(page){
     const card=document.querySelector('irrigation-zone-card');const previous=window.zoneHass.callWS;
     window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{stored_units:'metric',direct_valve_control_enabled:true}:previous(message);
     card.hass={...card._hass,states:{...card._hass.states,'button.zone_run':{state:'unknown',attributes:{}}}};
+    card.hass={...card._hass,states:{...card._hass.states,'sensor.renamed_duration':{state:'120',attributes:{unit_of_measurement:'s'}}}};
     card.setConfig({zone:0,show_rules:false,show_control:false,show_irrigate:true});
     await window.discoveryCallbacks.zones();await card._systemReader.refresh();
   });
@@ -250,4 +251,16 @@ test('native zone mode disabled or failed never falls back to manual watering',a
   await expect(card.locator('#irrigate')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Direkte Ventilsteuerung');expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
   await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:true}:{};await card._systemReader.refresh();card.setConfig({...card._config,confirm_irrigate:false});card._hass.callService=async()=>{throw new Error('Native run failed');};});
   await card.locator('#irrigate').click();await expect(card.getByRole('alert')).toContainText('Native run failed');await expect(card.locator('.status')).toHaveText('Kein Wasserbedarf');
+});
+test('zero duration explains the disabled watering action and live demand re-enables it',async({page})=>{
+  await nativeZoneFixture(page);
+  const card=page.locator('irrigation-zone-card').first();
+  await card.evaluate(card=>{const entity=card._resolved().entity;card.hass={...card._hass,states:{...card._hass.states,[entity]:{state:'0',attributes:{unit_of_measurement:'s'}}}};});
+  await expect(card.locator('#irrigate')).toBeDisabled();
+  await expect(card.locator('.irrigate-control')).toContainText('Kein berechneter Bewässerungsbedarf · Dauer 0 s.');
+  await card.evaluate(card=>card._irrigate());
+  expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
+  await card.evaluate(card=>{const entity=card._resolved().entity;card.hass={...card._hass,states:{...card._hass.states,[entity]:{state:'120',attributes:{unit_of_measurement:'s'}}}};card.setConfig({...card._config,language:'en'});});
+  await expect(card.locator('#irrigate')).toBeEnabled();
+  await expect(card.locator('.irrigate-control')).not.toContainText('duration 0');
 });

@@ -147,6 +147,8 @@ confirm_open: true
 
 Alle Felder sind im visuellen Karteneditor bearbeitbar. Der Kartenwähler schlägt bei verfügbarer Zonen-ID die automatische Zonen-Konfiguration vor, andernfalls eine manuelle Konfiguration. Bestehende Karten aus v0.1.0 funktionieren unverändert weiter. Für eine Umstellung im Editor die Zone auswählen oder in YAML die bisherigen Einzelzuordnungen durch `zone` ersetzen.
 
+**Rückmeldung bei Dauer 0:** Jetzt bewässern ist bei berechneter Zonendauer 0 mit sichtbarer Erklärung deaktiviert. Sobald die Dauer steigt, wird der Button wieder aktiv. Die Übersicht berücksichtigt dafür die berechneten Dauern aller angebundenen, nicht deaktivierten Zonen, nicht die möglicherweise geschätzte Startvorschau. Unbekannte Dauern gelten nicht als 0. Der Button fordert den bereits berechneten Lauf an; er berechnet nicht neu und erzwingt keine zusätzliche Bewässerung.
+
 ## Optionen
 
 | Feld | Standard | Bedeutung |
@@ -254,7 +256,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 31 Logiktests und 35 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 34 Logiktests und 37 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

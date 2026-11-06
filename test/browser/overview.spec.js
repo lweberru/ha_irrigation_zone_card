@@ -96,6 +96,20 @@ test('native global run is independently configurable and targets the integratio
   await card.screenshot({path:'test-results/native-overview.png'});
   await card.evaluate(card=>card.setConfig({...card._config,show_actions:false}));await expect(card.locator('[data-action]')).toHaveCount(0);await expect(card.locator('#irrigate_entity')).toHaveCount(0);
 });
+test('central watering explains zero committed duration and recovers on sensor updates',async({page})=>{
+  await nativeOverviewFixture(page);
+  const card=page.locator('irrigation-overview-card').first();
+  await card.evaluate(card=>{
+    card._discovery={zones:[{id:0,linked_entity:'valve.zone',duration:0}],registry:[...card._discovery.registry,{platform:'smart_irrigation',unique_id:'smart_irrigation_0_duration',entity_id:'sensor.zone_duration'}]};
+    card.hass={...card._hass,states:{...card._hass.states,'sensor.zone_duration':{state:'0',attributes:{unit_of_measurement:'s'}}}};
+  });
+  await expect(card.locator('#irrigate_entity')).toBeDisabled();
+  await expect(card.locator('.irrigate-control')).toContainText('Dauer 0 s.');
+  await card.evaluate(card=>card._action('irrigate_entity'));
+  expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);
+  await card.evaluate(card=>{card.hass={...card._hass,states:{...card._hass.states,'sensor.zone_duration':{state:'120',attributes:{unit_of_measurement:'s'}}}};});
+  await expect(card.locator('#irrigate_entity')).toBeEnabled();
+});
 test('missing native global button stays disabled and cannot trigger a local automation',async({page})=>{
   const card=page.locator('irrigation-overview-card').first();await card.evaluate(card=>card.setConfig({...window.overviewConfig,show_irrigate:true}));
   await expect(card.locator('#irrigate_entity')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Direkte Ventilsteuerung in Smart Irrigation aktivieren');expect(await page.evaluate(()=>window.overviewCalls)).toEqual([]);

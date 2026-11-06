@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 — 2026-11-06
+
+- Explain zero calculated duration beside disabled native watering buttons in German and English; enable them again when demand changes.
+- Use committed eligible-zone durations for the global action rather than estimated or weather-adjusted planning previews. Unknown data is not treated as zero.
+- 34 logic tests and 37 browser checks, including zero-duration no-dispatch and live recovery in both cards.
+
 ## 0.7.1 — 2026-11-06
 
 - Distinguish disabled native control, unknown configuration, missing native buttons, and unavailable configured buttons in both cards.

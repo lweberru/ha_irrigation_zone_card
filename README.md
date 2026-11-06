@@ -149,6 +149,8 @@ confirm_open: true
 
 All fields are editable in the visual card editor. The card picker suggests automatic zone configuration when a zone ID is available, otherwise manual configuration. Existing v0.1.0 cards continue to work unchanged. To switch, select the zone in the editor or replace individual assignments with `zone` in YAML.
 
+**Zero-duration feedback:** Water now is disabled with a visible explanation when the zone’s committed duration is 0. It becomes available again when the duration increases. The overview applies this when all linked, enabled zones have zero committed durations; it does not use the potentially estimated next-start preview. Unknown durations are not treated as zero. The button requests the existing calculated run; it does not recalculate or force extra watering.
+
 ## Options
 
 | Field | Default | Meaning |
@@ -256,7 +258,7 @@ Checks cover configuration, units, status logic, scales, actuator actions, rende
 
 Additional checks cover zone ID `0`, stable discovery after entity IDs are renamed, manual overrides, zone changes, shared valves, shared requests, subscription cleanup, and API errors. Discovery for all three sample zones was validated against real API responses without operating valves.
 
-The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 31 logic tests and 35 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
+The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 34 logic tests and 37 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
 `src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
 
