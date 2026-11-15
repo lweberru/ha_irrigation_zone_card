@@ -10,6 +10,31 @@ Since v0.3.0, the same HACS installation also includes **Irrigation Overview**, 
 
 The screenshots show the German interface. Both cards support English and German and follow your Home Assistant language by default. Use `language: en` to select English explicitly.
 
+## Smart Irrigation v2026.11.0 controller
+
+The overview automatically discovers the integration's **Calculate & water** master switch and places it at the top. Switching it off stops calculation and watering; this is separate from **Pause**, which holds an existing run for a limited time and can be resumed. When the full controller is on, the older direct-control toggle is hidden because the controller owns that setting.
+
+The controller section shows active/queued programs, progress, remaining time and pause expiry. **Pause**, **Resume** and **Stop** call the native `pause_watering`, `resume_watering` and `stop_watering` actions. Pause defaults to 60 minutes, after which Smart Irrigation resumes automatically. Program editing and schedules remain in the standard Smart Irrigation panel, linked from the card. Runtime data is refreshed every 15 seconds and after commands; errors disable runtime actions without replacing valid planning data with a fake zero.
+
+```yaml
+type: custom:irrigation-overview-card
+show_master_control: true
+show_controller: true
+pause_minutes: 60
+show_control: false
+```
+
+| Overview option | Default | Meaning |
+| --- | --- | --- |
+| `irrigation_enabled_entity` | automatic | Optional override for the native master switch |
+| `show_master_control` | `true` | Display the central master switch |
+| `show_controller` | `true` | Display controller runtime and its actions when full control is enabled |
+| `pause_minutes` | `60` | Native pause duration, integer 1–1440 minutes |
+
+Automatic zone configuration prefers the integration's native valve entity when available. Its top **Water now / Stop** control requests a calculated run with native supplies and shutoff; known zero duration and the central off switch prevent opening, while closing remains available. Use `show_control: true, show_irrigate: false` for this compact header control. An explicit `valve_entity` overrides discovery, so raw hardware control remains optional. Older integrations without native valves keep the previous hardware fallback.
+
+Configure pumps/main valves as native **supplies** and assign them to each connected zone. A separate main-valve coupling automation is unnecessary for controller-managed runs and should not switch the same supply concurrently. External safety automations remain independent and can impose shorter limits than the programs. Older releases and optional external automations remain supported; no local automation is required by these cards.
+
 ## Requirements and optional local controls
 
 **Smart Irrigation is the only required Home Assistant integration for these cards.** No specific local automation, helper, timer, soil moisture sensor, or valve is required. Use a version exposing the documented zone/system endpoints and stable entity identifiers (validated with v2026.10.8).
@@ -33,7 +58,7 @@ The repository provides the ready-to-use bundle at `dist/ha_irrigation_zone_card
 
 ### Manual installation / local development
 
-Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.7.1` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
+Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.8.0` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
 
 ## Central card: Irrigation Overview
 
@@ -205,7 +230,7 @@ The zone valve is integrated into the summary next to the demand status, above t
 
 The card calls `switch.turn_on`/`switch.turn_off` or `valve.open_valve`/`valve.close_valve` for exactly the configured entity. For valves, it respects the reported OPEN/CLOSE capabilities. The button is disabled when the state is unknown or the valve is moving. Errors appear in the card; state continues to come from Home Assistant.
 
-**The card does not start its own shutoff timer or a Smart Irrigation automation when opening manually.** External safety automations and device timers still apply. The compact control explains this as “Manual · no card timer” in its tooltip and confirmation dialog. An open valve must be closed manually or by an existing automation. Opening therefore requires confirmation by default. Closing is immediate. `show_control: false` displays the state only. The card does not write back to the Smart Irrigation water balance or modify automations.
+**For an explicitly configured raw hardware valve, the card does not start its own shutoff timer or a Smart Irrigation automation.** External safety automations and device timers still apply. The compact control explains this as “Manual · no card timer” in its tooltip and confirmation dialog. An open valve must be closed manually or by an existing automation. Opening therefore requires confirmation by default. Closing is immediate. `show_control: false` displays the state only. The card does not write back to the Smart Irrigation water balance or modify automations.
 
 ### Native control and timed watering
 
@@ -258,7 +283,7 @@ Checks cover configuration, units, status logic, scales, actuator actions, rende
 
 Additional checks cover zone ID `0`, stable discovery after entity IDs are renamed, manual overrides, zone changes, shared valves, shared requests, subscription cleanup, and API errors. Discovery for all three sample zones was validated against real API responses without operating valves.
 
-The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 34 logic tests and 37 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
+The central card adds checks for planning status, custom automations, API failures, frost holds, missing temperatures, disabled frost protection, rain values, native global buttons, service errors, more-info dialogs, time zones, and mobile rendering. Further checks cover ET/problem discovery, live changes, signs, safe message rendering, unknown problem states, and the clickable water balance including keyboard access. There are 40 logic tests and 41 browser checks in total. Discovery and protection data were also checked against real API responses without executing actions on the actual system.
 
 `src/` contains the source; `dist/` is committed so HACS can also install without a GitHub release. Run `npm run build` after changes. The build includes all runtime code without CDN dependencies. CI also checks that the distributable is up to date. Publishing on GitHub and installation on an HA system are separate steps.
 

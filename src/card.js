@@ -8,8 +8,8 @@ import './overview-card.js';
 import { hasZone, resolveZone, watchDiscovery, sameEntities } from './discovery.js';
 
 export const translations = {
-  de: { zone:'Bewässerungszone', watering:'Ventil aktiv', needed:'Bewässerung nötig', balanced:'Kein Wasserbedarf', unknown:'Wasserbedarf unbekannt', moisture:'Bodenfeuchte', balance:'Wasserbilanz · live', reserve:'Wasservorrat', deficit:'Wasserdefizit', neutral:'Ausgeglichen', duration:'Berechnete Dauer', used:'Wasserverbrauch', valve:'Zonenventil', open:'Öffnen', close:'Schließen', opening:'Öffnet …', closing:'Schließt …', on:'Geöffnet', off:'Geschlossen', unavailable:'Nicht verfügbar', pending:'Wird gesendet …', confirm:'Ventil manuell öffnen? Die Karte startet keinen Abschalttimer. Externe Sicherheitsabschaltungen bleiben wirksam.', manual:'Manuell · kein Kartentimer', failed:'Ventil konnte nicht geschaltet werden.', missing:'Nicht verfügbar', details:'Zonendetails öffnen', noData:'Die konfigurierten Sensoren liefern noch keine Werte.' },
-  en: { zone:'Irrigation zone', watering:'Valve active', needed:'Irrigation needed', balanced:'No irrigation needed', unknown:'Water demand unknown', moisture:'Soil moisture', balance:'Water balance · live', reserve:'Water reserve', deficit:'Water deficit', neutral:'Balanced', duration:'Calculated duration', used:'Water used', valve:'Zone valve', open:'Open', close:'Close', opening:'Opening …', closing:'Closing …', on:'Open', off:'Closed', unavailable:'Unavailable', pending:'Sending …', confirm:'Open valve manually? The card does not start a shutoff timer. External safety shutoffs still apply.', manual:'Manual · no card timer', failed:'Could not control the valve.', missing:'Unavailable', details:'Open zone details', noData:'The configured sensors have no readings yet.' },
+  de: { zone:'Bewässerungszone', watering:'Ventil aktiv', needed:'Bewässerung nötig', balanced:'Kein Wasserbedarf', unknown:'Wasserbedarf unbekannt', moisture:'Bodenfeuchte', balance:'Wasserbilanz · live', reserve:'Wasservorrat', deficit:'Wasserdefizit', neutral:'Ausgeglichen', duration:'Berechnete Dauer', used:'Wasserverbrauch', valve:'Zonenventil', open:'Öffnen', close:'Schließen', opening:'Öffnet …', closing:'Schließt …', on:'Geöffnet', off:'Geschlossen', unavailable:'Nicht verfügbar', pending:'Wird gesendet …', confirm:'Ventil manuell öffnen? Die Karte startet keinen Abschalttimer. Externe Sicherheitsabschaltungen bleiben wirksam.', stop:'Stoppen',manual:'Manuell · kein Kartentimer', failed:'Ventil konnte nicht geschaltet werden.', missing:'Nicht verfügbar', details:'Zonendetails öffnen', noData:'Die konfigurierten Sensoren liefern noch keine Werte.' },
+  en: { zone:'Irrigation zone', watering:'Valve active', needed:'Irrigation needed', balanced:'No irrigation needed', unknown:'Water demand unknown', moisture:'Soil moisture', balance:'Water balance · live', reserve:'Water reserve', deficit:'Water deficit', neutral:'Balanced', duration:'Calculated duration', used:'Water used', valve:'Zone valve', open:'Open', close:'Close', opening:'Opening …', closing:'Closing …', on:'Open', off:'Closed', unavailable:'Unavailable', pending:'Sending …', confirm:'Open valve manually? The card does not start a shutoff timer. External safety shutoffs still apply.', stop:'Stop',manual:'Manual · no card timer', failed:'Could not control the valve.', missing:'Unavailable', details:'Open zone details', noData:'The configured sensors have no readings yet.' },
 };
 Object.assign(translations.de, { sharedValve:'Gemeinsames Ventil', loading:'Zone wird geladen …', zoneMissing:'Die ausgewählte Smart-Irrigation-Zone wurde nicht gefunden.', discoveryFailed:'Automatische Zuordnung nicht verfügbar. Verbindung und Smart-Irrigation-Integration prüfen oder Entitäten manuell eintragen.', autoMissing:'Sensoren nicht automatisch gefunden (optional manuell zuweisen)' });
 Object.assign(translations.en, { sharedValve:'Shared valve', loading:'Loading zone …', zoneMissing:'The selected Smart Irrigation zone was not found.', discoveryFailed:'Automatic discovery unavailable. Check the connection and Smart Irrigation integration or configure entities manually.', autoMissing:'Sensors not discovered (assign manually if needed)' });
@@ -32,11 +32,11 @@ export class IrrigationZoneCard extends HTMLElement {
     }
     if (this._connection === connection) return;
     this._unwatch?.(); this._discovery = null; this._connection = connection;
-    this._unwatch = watchDiscovery(this._hass, snapshot => { this._discovery = snapshot; this._render(); });
+    this._unwatch = watchDiscovery(this._hass, snapshot => { this._discovery = snapshot; this._watchRules(); this._render(); });
   }
   _watchRules() {
     const connection = this._hass?.connection || this._hass;
-    const enabled = this.isConnected && this._config && ((hasZone(this._config) && this._config.show_rules !== false) || this._config.show_irrigate) && this._hass?.callWS;
+    const enabled = this.isConnected && this._config && ((hasZone(this._config) && (this._config.show_rules !== false || (this._config.show_control && this._resolved()._nativeValve))) || this._config.show_irrigate) && this._hass?.callWS;
     if (!enabled || connection !== this._systemConnection) {
       this._systemReader?.unsubscribe(); this._systemReader = null; this._systemConnection = null; this._system = null;
     }
@@ -63,6 +63,7 @@ export class IrrigationZoneCard extends HTMLElement {
     const old = this._hass;
     const previous = this._config ? this._resolved() : null;
     this._hass = value;
+    this._systemReader?.setHass(value);
     if (!this._config) return;
     this._watchDiscovery();
     const resolved = this._resolved();
@@ -107,15 +108,23 @@ export class IrrigationZoneCard extends HTMLElement {
     if (this._pending) return;
     const config = this._resolved();
     const model = zoneModel(config, this._hass.states);
-    const action = model.action;
+    const action = this._controlAction(config,model);
     if (!action) return;
-    if (['turn_on','open_valve'].includes(action.service) && config.confirm_open && !window.confirm(`${config._sharedValve ? this._t.sharedValve + ' ' : ''}${this._t.confirm}`)) return;
+    if (['turn_on','open_valve'].includes(action.service) && config.confirm_open && !window.confirm(`${config._sharedValve ? this._t.sharedValve + ' ' : ''}${config._nativeValve ? this._it.confirm : this._t.confirm}`)) return;
     this._pending = true; this._error = ''; this._render();
     try {
       await this._hass.callService(action.domain, action.service, { entity_id:config.valve_entity });
     } catch (error) { this._error = `${this._t.failed} ${error?.message || ''}`; }
     finally { this._pending = false; this._render(); }
   }
+  _nativeControlIssue(config,model) {
+    if (!config._nativeValve || ['turn_off','close_valve'].includes(model.action?.service)) return null;
+    if (this._system?.config?.irrigation_enabled === false) return 'masterOff';
+    const duration = durationParts(model.main);
+    if (duration && duration.value <= 0) return 'noDemand';
+    return null;
+  }
+  _controlAction(config,model) { return this._nativeControlIssue(config,model) ? null : model.action; }
   _render() {
     if (!this._config || !this._hass) return;
     this.toggleAttribute('dark', !!this._hass.themes?.darkMode);
@@ -139,7 +148,8 @@ export class IrrigationZoneCard extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>${styles}</style><ha-card><div class="wrap">
       <header><div class="zone-icon">${icon(config.icon || 'mdi:sprinkler-variant')}</div><div class="heading"><div class="eyebrow">${escape(t.zone)}</div><h2>${escape(name)}</h2></div><button class="more" aria-label="${escape(t.details)}">${icon('mdi:dots-horizontal')}</button></header>
       ${m.problem === 'active' || m.problem === 'unknown' ? `<div class="problem-banner ${m.problem}" role="${m.problem === 'active' ? 'alert' : 'status'}"><${config.problem_entity ? 'button' : 'div'} class="problem-content" ${config.problem_entity ? `data-entity="${escape(config.problem_entity)}"` : ''}>${icon(m.problem === 'active' ? 'mdi:alert-circle-outline' : 'mdi:help-circle-outline')}<span><strong>${escape(m.problem === 'active' ? t.problem : t.problemUnknown)}</strong><span>${escape(m.problem === 'active' ? problemText : t.problemUnknownDetail)}</span></span></${config.problem_entity ? 'button' : 'div'}></div>` : ''}
-      <div class="zone-summary"><div class="status ${m.status}" role="status"><span class="dot"></span>${escape(t[m.status])}</div>${config.valve_entity ? `<div class="control" title="${escape(t.manual)}">${icon(m.active ? 'mdi:pipe-valve' : 'mdi:valve-closed')}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} · ${escape(valveState)}</div></div>${config.show_control ? `<button id="control" class="${close ? 'close' : ''}" ${!m.action || this._pending ? 'disabled' : ''}>${escape(this._pending ? t.pending : close ? t.close : t.open)}</button>` : ''}</div>` : ''}</div>
+      <div class="zone-summary"><div class="status ${m.status}" role="status"><span class="dot"></span>${escape(t[m.status])}</div>${config.valve_entity ? `<div class="control" title="${escape(config._nativeValve ? it.detail : t.manual)}">${icon(m.active ? 'mdi:pipe-valve' : 'mdi:valve-closed')}<div class="control-copy"><div class="control-title">${escape(config._sharedValve ? t.sharedValve : t.valve)} · ${escape(valveState)}</div></div>${config.show_control ? `<button id="control" class="${close ? 'close' : ''}" ${!this._controlAction(config,m) || this._pending ? 'disabled' : ''}>${escape(this._pending ? t.pending : close ? (config._nativeValve ? t.stop : t.close) : (config._nativeValve ? it.now : t.open))}</button>` : ''}</div>` : ''}</div>
+      ${config._nativeValve && config.show_control && !config.show_irrigate && this._nativeControlIssue(config,m) ? `<div class="rule-note" role="status">${escape(it[this._nativeControlIssue(config,m)])}</div>` : ''}
       ${config.show_irrigate ? `<div class="irrigate-control"><button id="irrigate" ${!irrigateAction(config,this._hass.states,this._system) || this._pending ? 'disabled' : ''}>${icon('mdi:sprinkler')}<span>${escape(this._pending ? t.pending : it.now)}<small>${escape(it.detail)}</small></span></button>${!irrigateAction(config,this._hass.states,this._system) ? `<div class="rule-note" role="status">${escape(it[irrigateIssue(config,this._hass.states,this._system)])}</div>` : ''}</div>` : ''}
       ${config.moisture_entity || config.bucket_entity ? `<div class="overview">
         ${config.moisture_entity ? `<button class="ring ring-button" data-entity="${escape(config.moisture_entity)}" aria-label="${escape(t.moisture + ': ' + this._state(config.moisture_entity))}">

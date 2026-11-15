@@ -1,3 +1,4 @@
+import { controllerModel, controllerAction, controllerText } from './controller.js';
 import { irrigateAction, irrigateIssue, irrigateText } from './irrigate.js';
 import { styles } from './styles.js';
 import { numeric } from './model.js';
@@ -23,7 +24,7 @@ export class IrrigationOverviewCard extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});this._pending=null;}
   setConfig(config){this._config=validateOverviewConfig(config);this._watch();this._render();}
   set hass(hass){
-    const old=this._hass;this._hass=hass;this._watch();
+    const old=this._hass;this._hass=hass;this._systemReader?.setHass(hass);this._watch();
     if(!this._config)return;
     const ids=new Set([...overviewEntityKeys.map(key=>this._resolved()[key]),...(this._discovery?.registry||[]).filter(entry=>entry.platform==='smart_irrigation').map(entry=>entry.entity_id),this._system?.config?.rain_sensor,this._system?.config?.freeze_sensor,this._system?.config?.wind_sensor]);
     const changed=!old||[...ids].some(id=>id&&old.states[id]!==hass.states[id]);
@@ -59,6 +60,15 @@ export class IrrigationOverviewCard extends HTMLElement {
     const config=this._resolved();
     if(!config.show_actions)return;
     if(key==='native_control'){await this._nativeControl(config);return;}
+    if(key.startsWith('controller_')){
+      const action=controllerAction(config,this._system,key);if(!action||this._pending)return;
+      if(key==='controller_resume'&&config.confirm_irrigate&&!window.confirm(this._ct.resumeConfirm))return;
+      this._pending=key;this._error='';this._render();
+      try{await this._hass.callService(action.domain,action.service,action.data);await this._systemReader?.refresh();}
+      catch(error){this._error=`${this._t.error} ${error?.message||''}`;}
+      finally{this._pending=null;this._render();}return;
+    }
+    if(key==='irrigation_enabled_entity'&&overviewAction(config,this._hass.states,key)?.service==='turn_on'&&config.confirm_native&&!window.confirm(this._ct.confirm))return;
     if(key==='main_valve_entity'&&!config.show_control)return;
     const action=key==='irrigate_entity'?irrigateAction(config,this._hass.states,this._system,this._discovery):overviewAction(config,this._hass.states,key);if(!action)return;
     if(key==='irrigate_entity'&&config.confirm_irrigate&&!window.confirm(this._it.confirmAll))return;
@@ -70,7 +80,7 @@ export class IrrigationOverviewCard extends HTMLElement {
   }
   async _nativeControl(config){
     const current=this._system?.config?.direct_valve_control_enabled;
-    if(!config.show_native_control||typeof current!=='boolean'||!this._hass.callApi)return;
+    if(!config.show_native_control||this._system?.config?.full_controller===true||typeof current!=='boolean'||!this._hass.callApi)return;
     if(!current&&config.confirm_native&&!window.confirm(this._t.nativeConfirm))return;
     this._pending='native_control';this._error='';this._render();
     try{
@@ -89,12 +99,19 @@ export class IrrigationOverviewCard extends HTMLElement {
     if(numeric(check.value)!==null)return `${this._number(numeric(check.value))} ${check.unit||''}${numeric(check.threshold)!==null?` · ${t.limit} ${this._number(numeric(check.threshold))} ${check.unit||''}`:''}`;
     return check.skip===true?t.held:check.skip===false?t.clear:t.unavailable;
   }
+  _controllerHTML(config){
+    const model=controllerModel(this._system),t=this._ct;
+    if(!config.show_controller||!model.supported)return '';
+    const action=(key,label,ico)=>`<button id="${key}" data-action="${key}" ${!controllerAction(config,this._system,key)||this._pending?'disabled':''}>${icon(ico)}${esc(label)}</button>`;
+    return `<section class="controller rules" aria-label="${esc(t.title)}"><div class="rules-heading">${icon('mdi:irrigation')}<span>${esc(t.title)}</span></div><p role="status">${esc(t[model.state])}</p>${model.paused&&model.live?.paused_until?`<div class="rule-note">${esc(t.until)} ${esc(this._date(model.live.paused_until))}</div>`:''}${model.programs.map(program=>`<div class="controller-program"><strong>${esc(program.name||program.program_id||'Smart Irrigation')}</strong><div class="rule-note">${esc(t.step)} ${esc(program.step??'—')} / ${esc(program.steps??'—')} · ${esc(this._duration(numeric(program.remaining_seconds)))} ${esc(t.remaining)}</div><progress max="100" value="${Math.max(0,Math.min(100,numeric(program.percent)??0))}" aria-label="${esc(program.name||t.title)}"></progress></div>`).join('')}${config.show_actions?`<div class="actions controller-actions">${action('controller_pause',t.pause+' ('+config.pause_minutes+' min)','mdi:pause')}${action('controller_resume',t.resume,'mdi:play')}${action('controller_stop',t.stop,'mdi:stop')}</div>`:''}<a class="text-action controller-link" href="/smart_irrigation">${esc(t.open)}</a></section>`;
+  }
   _render(){
     if(!this._config||!this._hass)return;
     const config=this._resolved(),m=overviewModel(config,this._hass.states,this._system,this._discovery);
     const lang=config.language&&config.language!=='auto'?config.language:this._hass.language;
     const t=this._t=text[lang?.startsWith('de')?'de':'en'];
     const it=this._it=irrigateText[lang?.startsWith('de')?'de':'en'];
+    const ct=this._ct=controllerText[lang?.startsWith('de')?'de':'en'];
     this.toggleAttribute('dark',!!this._hass.themes?.darkMode);
     const focus=this.shadowRoot.activeElement?.id;
     const rawFreeze=Array.isArray(m.info?.skip_preview?.checks)?m.info.skip_preview.checks.find(check=>check.id==='freeze'):null;
@@ -110,18 +127,22 @@ export class IrrigationOverviewCard extends HTMLElement {
     const missing=overviewEntityKeys.filter(key=>config[key]&&(!this._hass.states[config[key]]||this._hass.states[config[key]].state==='unavailable'||(!config[key].startsWith('button.')&&this._hass.states[config[key]].state==='unknown')));
     const valveText={on:t.on,open:t.on,off:t.off,closed:t.off,opening:t.opening,closing:t.closing}[m.valveState]||t.unavailable;
     const native=this._system?.config?.direct_valve_control_enabled;
+    const showNative=config.show_native_control&&this._system?.config?.full_controller!==true;
+    const showMaster=config.show_master_control&&!!config.irrigation_enabled_entity;
+    const masterState=this._hass.states[config.irrigation_enabled_entity]?.state;
     const nativeSupported=typeof native==='boolean'&&!!this._hass.callApi;
     const topControl=(key,title,state,actionText,symbol,active=false)=>{
       const interactive=config.show_actions&&(key!=='main_valve_entity'||config.show_control);
-      return `<${interactive?'button':'div'} ${interactive?`id="${key}" data-action="${key}" ${!(key==='native_control'?nativeSupported:overviewAction(config,this._hass.states,key))||this._pending?'disabled':''}`:''} class="top-control ${key==='native_control'?'native-control':''} ${active?'is-active':''}" ${key==='main_valve_entity'?`title="${esc(t.manualValve)}"`:''}>${icon(symbol)}<span class="top-copy"><span class="top-label">${esc(title)}</span><strong>${esc(state)}</strong>${key==='native_control'?`<span class="top-label">${esc(t.nativeNote)}</span>`:''}${interactive?`<span class="top-command">${esc(this._pending===key?t.sending:actionText)}</span>`:''}</span></${interactive?'button':'div'}>`;
+      return `<${interactive?'button':'div'} ${interactive?`id="${key}" data-action="${key}" ${!(key==='native_control'?nativeSupported:overviewAction(config,this._hass.states,key))||this._pending?'disabled':''}`:''} class="top-control ${key==='native_control'?'native-control':''} ${active?'is-active':''}" ${key==='main_valve_entity'?`title="${esc(t.manualValve)}"`:''}>${icon(symbol)}<span class="top-copy"><span class="top-label">${esc(title)}</span><strong>${esc(state)}</strong>${key==='native_control'||key==='irrigation_enabled_entity'?`<span class="top-label">${esc(key==='irrigation_enabled_entity'?ct.masterNote:t.nativeNote)}</span>`:''}${interactive?`<span class="top-command">${esc(this._pending===key?t.sending:actionText)}</span>`:''}</span></${interactive?'button':'div'}>`;
     };
     const mainAction=overviewAction(config,this._hass.states,'main_valve_entity');
     const mainClose=['turn_off','close_valve'].includes(mainAction?.service);
-    this.shadowRoot.innerHTML=`<style>${styles}${extraStyles}</style><ha-card><div class="wrap">
+    this.shadowRoot.innerHTML=`<style>${styles}${extraStyles}.controller progress{width:100%;accent-color:var(--iz-green);margin-top:8px}.controller-program{margin:12px 0}.controller-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.controller-link{display:inline-block;margin-top:12px;max-width:100%;text-decoration:none}</style><ha-card><div class="wrap">
       <header><div class="zone-icon">${icon(config.icon||'mdi:sprinkler-variant')}</div><div class="heading"><div class="eyebrow">${esc(t.eyebrow)}</div><h2>${esc(config.name||t.title)}</h2></div><button id="refresh" class="more" aria-label="${esc(t.refresh)}" ${!this._systemReader?'disabled':''}>${icon('mdi:refresh')}</button></header>
-      ${config.show_native_control||config.automation_entity||config.main_valve_entity?`<div class="top-controls">${config.show_native_control?topControl('native_control',t.native,native===true?t.nativeOn:native===false?t.nativeOff:t.unavailable,native===true?t.disable:t.enable,'mdi:sprinkler-variant',native===true):''}${config.automation_entity?topControl('automation_entity',config.automation_name||t.automationLabel,m.automation==='off'?t.paused:m.automation==='on'?(config.automation_name?t.active:t.automationOn):t.unavailable,m.automation==='on'?t.pause:t.enable,'mdi:autorenew',m.automation==='on'):''}${config.main_valve_entity?topControl('main_valve_entity',t.mainValve,valveText,mainClose?t.close:t.open,'mdi:pipe-valve',['on','open','opening','closing'].includes(m.valveState)):''}</div>`:''}
+      ${showMaster||showNative||config.automation_entity||config.main_valve_entity?`<div class="top-controls">${showMaster?topControl('irrigation_enabled_entity',ct.master,masterState==='on'?ct.on:masterState==='off'?ct.off:t.unavailable,masterState==='on'?t.disable:t.enable,'mdi:power',masterState==='on'):''}${showNative?topControl('native_control',t.native,native===true?t.nativeOn:native===false?t.nativeOff:t.unavailable,native===true?t.disable:t.enable,'mdi:sprinkler-variant',native===true):''}${config.automation_entity?topControl('automation_entity',config.automation_name||t.automationLabel,m.automation==='off'?t.paused:m.automation==='on'?(config.automation_name?t.active:t.automationOn):t.unavailable,m.automation==='on'?t.pause:t.enable,'mdi:autorenew',m.automation==='on'):''}${config.main_valve_entity?topControl('main_valve_entity',t.mainValve,valveText,mainClose?t.close:t.open,'mdi:pipe-valve',['on','open','opening','closing'].includes(m.valveState)):''}</div>`:''}
       ${config.show_irrigate&&config.show_actions?`<div class="irrigate-control"><button id="irrigate_entity" data-action="irrigate_entity" ${!irrigateAction(config,this._hass.states,this._system,this._discovery)||this._pending?'disabled':''}>${icon('mdi:sprinkler')}<span>${esc(this._pending==='irrigate_entity'?t.sending:it.all)}<small>${esc(it.detail)}</small></span></button>${!irrigateAction(config,this._hass.states,this._system,this._discovery)?`<div class="rule-note" role="status">${esc(it[irrigateIssue(config,this._hass.states,this._system,this._discovery)])}</div>`:''}</div>`:''}
-      ${m.status==='paused' &&config.automation_entity?'':`<div class="system-status ${m.status}" role="status"><div class="symbol">${icon(statusIcon)}</div><strong>${esc(t[m.status])}</strong></div>`}
+      ${m.status==='paused' &&config.automation_entity&&!showMaster&&this._system?.config?.full_controller!==true?'':`<div class="system-status ${m.status}" role="status"><div class="symbol">${icon(statusIcon)}</div><strong>${esc(t[m.status])}</strong></div>`}
+      ${this._controllerHTML(config)}
       <div class="plan"><div class="label">${esc(t.planning)}</div><div class="plan-date">${esc(m.info?.active_start_trigger==='none'?t.noStart:this._date(m.info?.next_irrigation_start))}</div><div class="plan-note">${esc(m.info?.start_trigger_armed===true?t.armed:m.info?.start_trigger_armed===false?t.notArmed:t.unavailable)}</div><div class="totals"><div class="total"><strong>${esc(this._duration(m.duration))}</strong><div class="label">${esc(t.duration)} · ${esc(m.estimated?t.estimated:t.calculated)}</div></div><div class="total"><strong>${esc(this._number(m.needed))}<small> ${esc(t.of)} ${esc(this._number(m.zoneCount))}</small></strong><div class="label">${esc(t.zones)}</div></div></div></div>
       <div class="section-label">${esc(t.checks)}</div><div class="frost ${freezeClass}" role="status">${icon('mdi:snowflake')}<div class="frost-copy"><strong>${esc(t.freeze)}</strong><p>${esc(freezeCaption)}</p>${numeric(rawFreeze?.threshold)!==null?`<p>${esc(t.freezeLimit)} ${esc(this._number(numeric(rawFreeze.threshold)))} ${esc(rawFreeze.unit||'')}</p>`:''}</div><div class="reading">${esc(freezeValid?this._number(numeric(rawFreeze.value)):'—')}<small>${esc(freezeValid?rawFreeze.unit||'':'')}</small></div></div>
       ${m.rain?`<div class="rain"><div class="rain-heading"><div class="label">${esc(t.forecast)}${numeric(m.rain.window_hours)!==null?` · ${esc(this._number(numeric(m.rain.window_hours)))} ${esc(t.hours)}`:''}</div><strong>${esc(this._number(m.forecast))} <small>mm</small></strong></div><div class="rain-track" role="img" aria-label="${esc(t.forecast+': '+this._number(m.forecast)+' mm · '+t.threshold+': '+this._number(m.threshold)+' mm')}"><div class="rain-fill" style="width:${m.rainFill??0}%"></div></div><div class="rain-limit">${esc(t.threshold)} ${esc(this._number(m.threshold))} mm · ${esc(m.rain.enabled!==true?t.disabled:m.rain.available===false?t.unavailable:m.rain.skip===true?t.held:m.rain.skip===false?t.clear:t.unavailable)}</div></div>`:''}

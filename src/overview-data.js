@@ -14,7 +14,13 @@ export function watchOverview(hass, callback) {
     reader.pending = true;
     const results = await Promise.allSettled(['info','config'].map(path=>Promise.resolve().then(()=>reader.hass.callWS({type:`smart_irrigation/${path}`}))));
     const valid = result=>result.status === 'fulfilled' && result.value !== null && typeof result.value === 'object' && !Array.isArray(result.value);
-    reader.snapshot = {info:valid(results[0]) ? results[0].value : null,config:valid(results[1]) ? results[1].value : null,error:results.some(result=>!valid(result))};
+    const config = valid(results[1]) ? results[1].value : null;
+    let controller = null, controllerError = false;
+    if (config?.full_controller === true) {
+      try { controller = await reader.hass.callWS({type:'smart_irrigation/programs_state'}); if (!controller?.live || typeof controller.live !== 'object') throw new Error('Missing runtime state'); }
+      catch { controller = null; controllerError = true; }
+    }
+    reader.snapshot = {info:valid(results[0]) ? results[0].value : null,config,controller,controllerError,error:results.some(result=>!valid(result))};
     reader.pending = false;
     for (const listener of reader.listeners) listener(reader.snapshot);
     if (reader.again && reader.listeners.size) { reader.again = false; void refresh(); }
@@ -28,11 +34,11 @@ export function watchOverview(hass, callback) {
       connection.addEventListener('ready',refresh);
       reader.cleanup.push(()=>connection.removeEventListener('ready',refresh));
     }
-    reader.timer = setInterval(refresh,60000);
+    reader.timer = setInterval(refresh,15000);
     reader.timer.unref?.();
     void refresh();
   }
-  return {refresh,unsubscribe:()=>{
+  return {refresh,setHass:value=>{reader.hass=value;},unsubscribe:()=>{
     reader.listeners.delete(callback);
     if (!reader.listeners.size) {
       clearInterval(reader.timer); reader.cleanup.splice(0).forEach(cleanup=>cleanup()); readers.delete(key);

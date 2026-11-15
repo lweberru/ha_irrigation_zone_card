@@ -21,7 +21,10 @@ export function resolveZone(config, discovery) {
     if (candidates.length === 1) result[key] = candidates[0].entity_id;
   }
   if (!config.moisture_entity && /^sensor\.[a-z0-9_]+$/.test(zone.soil_moisture_sensor || '')) result.moisture_entity = zone.soil_moisture_sensor;
-  if (!config.valve_entity && /^(switch|valve)\.[a-z0-9_]+$/.test(zone.linked_entity || '')) result.valve_entity = zone.linked_entity;
+  const nativeValves = registry.filter(entry=>entry.platform === 'smart_irrigation' && !entry.disabled_by && entry.unique_id === `smart_irrigation_${zone.id}_valve` && entry.entity_id?.startsWith('valve.'));
+  if (!config.valve_entity && zone.linked_entity && nativeValves.length === 1) result.valve_entity = nativeValves[0].entity_id;
+  if (!result.valve_entity && /^(switch|valve)\.[a-z0-9_]+$/.test(zone.linked_entity || '')) result.valve_entity = zone.linked_entity;
+  result._nativeValve = nativeValves.some(entry=>entry.entity_id === result.valve_entity);
   const users = discovery.zones.filter(item => item.linked_entity === result.valve_entity);
   result._sharedValve = result.valve_entity && users.length > 1 ? users.length : 0;
   result._autoMissing = Object.keys(roles).filter(key => !['et_entity','problem_entity','irrigate_entity'].includes(key) && !result[key]);

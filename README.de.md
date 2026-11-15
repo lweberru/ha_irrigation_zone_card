@@ -8,6 +8,31 @@ Seit v0.3.0 enthält dieselbe HACS-Installation zusätzlich **Irrigation Overvie
 
 ![Kartenvorschau](docs/preview-light.png)
 
+## Smart-Irrigation-Controller ab v2026.11.0
+
+Die Übersicht erkennt den nativen Hauptschalter **Berechnen & bewässern** automatisch und platziert ihn ganz oben. Ausschalten stoppt Berechnung und Bewässerung. **Pause** hält dagegen einen bestehenden Lauf vorübergehend an; er lässt sich fortsetzen. Bei aktivem vollständigem Controller entfällt der bisherige Schalter für direkte Ventilsteuerung, weil der Controller diese Einstellung verwaltet.
+
+Der Controller-Bereich zeigt laufende/wartende Programme, Fortschritt, Restzeit und Pausenende. **Pause**, **Fortsetzen** und **Stoppen** verwenden die nativen Aktionen `pause_watering`, `resume_watering` und `stop_watering`. Die Pause dauert standardmäßig 60 Minuten; danach setzt Smart Irrigation automatisch fort. Programme und Zeitpläne werden im verlinkten Standard-Panel bearbeitet. Laufdaten werden alle 15 Sekunden und nach Aktionen aktualisiert. Bei Abruffehlern werden Laufaktionen deaktiviert; gültige Planungsdaten bleiben erhalten.
+
+```yaml
+type: custom:irrigation-overview-card
+show_master_control: true
+show_controller: true
+pause_minutes: 60
+show_control: false
+```
+
+| Option der Übersicht | Standard | Bedeutung |
+| --- | --- | --- |
+| `irrigation_enabled_entity` | automatisch | Optional den nativen Hauptschalter vorgeben |
+| `show_master_control` | `true` | Zentralen Hauptschalter anzeigen |
+| `show_controller` | `true` | Controller-Laufdaten und Aktionen bei vollständiger Steuerung anzeigen |
+| `pause_minutes` | `60` | Native Pausendauer, ganze Zahl von 1 bis 1440 Minuten |
+
+Die automatische Zonenzuordnung bevorzugt jetzt die native Ventilentität der Integration. **Jetzt bewässern / Stoppen** im Kopfbereich steuert damit einen berechneten Lauf einschließlich Versorgung und Abschaltung. Bei bekannter Dauer 0 oder ausgeschaltetem Hauptschalter bleibt Öffnen gesperrt; Schließen bleibt möglich. Für diese kompakte Bedienung `show_control: true, show_irrigate: false` verwenden. Eine explizite `valve_entity` überschreibt die Zuordnung, sodass Hardwareventile weiterhin optional direkt bedient werden können. Ältere Integrationen ohne native Ventile behalten den bisherigen Hardware-Rückfall.
+
+Pumpen und Hauptventile werden als native **Versorgungen** eingerichtet und den angeschlossenen Zonen zugewiesen. Für Controller-Läufe ist dann keine eigene Hauptventil-Kopplung nötig; sie sollte dieselbe Versorgung nicht gleichzeitig schalten. Externe Sicherheitsabschaltungen bleiben unabhängig wirksam und können kürzere Grenzen als die Programme vorgeben. Ältere Integrationsversionen und optionale eigene Automationen bleiben unterstützt; die Karten benötigen keine lokale Automation.
+
 ## Voraussetzungen und optionale lokale Steuerung
 
 **Smart Irrigation ist die einzige erforderliche Home-Assistant-Integration für diese Karten.** Eine bestimmte lokale Automation, ein Helfer, Timer, Bodenfeuchtesensor oder Ventil ist nicht erforderlich. Benötigt wird eine Version mit den dokumentierten Zonen-/System-Endpunkten und stabilen Entity-Kennungen (geprüft mit v2026.10.8).
@@ -31,7 +56,7 @@ Das Repository liefert die fertige Einzeldatei in `dist/ha_irrigation_zone_card.
 
 ### Manuell / lokale Entwicklung
 
-`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.7.1` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
+`dist/ha_irrigation_zone_card.js` nach `<HA-Konfigurationsordner>/www/ha_irrigation_zone_card.js` kopieren und `/local/ha_irrigation_zone_card.js?v=0.8.0` als JavaScript-Modul in den Dashboard-Ressourcen registrieren. Bei Updates den Versionsparameter ändern und den Browser neu laden. Keine `.storage`-Dateien bearbeiten.
 
 ## Zentrale Karte: Irrigation Overview
 
@@ -256,7 +281,7 @@ Prüft Konfiguration, Einheiten, Statuslogik, Skalen und Aktoraktionen sowie Dar
 
 Zusätzlich werden Zonen-ID `0`, stabile Zuordnung bei umbenannten Entity-IDs, manuelle Überschreibungen, Zonenwechsel, gemeinsame Ventile, geteilte Lesezugriffe, Aufräumen der Abonnements und API-Fehler geprüft. Die Zuordnung aller drei Beispielzonen wurde mit echten API-Antworten validiert, ohne Ventile zu schalten.
 
-Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 34 Logiktests und 37 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
+Die zentrale Karte ergänzt Prüfungen für Planungsstatus, eigene Automationen, API-Ausfälle, Frostsperre, fehlende Temperaturwerte, ausgeschalteten Frostschutz, Regenwerte, native globale Buttons, Servicefehler, Detaildialoge, Zeitzonen und mobile Darstellung. Weitere Prüfungen decken ET-/Problemzuordnung, Live-Änderungen, Vorzeichen, sichere Meldungstexte, unbekannte Problemzustände und die klickbare Wasserbilanz einschließlich Tastaturbedienung ab. Insgesamt 40 Logiktests und 41 Browserprüfungen. Auch Zuordnung und Schutzdaten wurden mit echten API-Antworten geprüft; dabei wurden keine Aktionen auf dem echten System ausgeführt.
 
 `src/` enthält den Quellcode; `dist/` wird mit eingecheckt, damit HACS auch ohne GitHub-Release installieren kann. Nach Änderungen `npm run build` ausführen. Der Build enthält alle Laufzeitdateien ohne CDN-Abhängigkeiten. CI prüft auch, dass der Distributable aktuell ist. GitHub-Veröffentlichung und Installation auf einem HA-System sind separate Schritte.
 

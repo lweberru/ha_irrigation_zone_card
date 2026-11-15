@@ -1,7 +1,9 @@
 import { numeric, valveAction } from './model.js';
+import { controllerModel } from './controller.js';
 
-export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity', 'irrigate_entity'];
+export const overviewEntityKeys = ['automation_entity', 'main_valve_entity', 'calculate_entity', 'update_weather_entity', 'precipitation_switch_entity', 'precipitation_threshold_entity', 'irrigate_entity', 'irrigation_enabled_entity'];
 const globalRoles = {
+  irrigation_enabled_entity:['switch','smart_irrigation_irrigation_enabled'],
   irrigate_entity:['button','smart_irrigation_irrigate_all'],
   calculate_entity:['button','smart_irrigation_calculate_all'],
   update_weather_entity:['button','smart_irrigation_update_weather'],
@@ -18,8 +20,9 @@ export function validateOverviewConfig(config) {
   }
   if (config.language !== undefined && !['auto','de','en'].includes(config.language)) throw new Error('language must be auto, de or en.');
   for (const key of ['name','icon','automation_name']) if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be a string.`);
-  for (const key of ['show_actions','show_control','show_irrigate','show_native_control','confirm_native','confirm_open','confirm_irrigate']) if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
-  return {show_actions:true,show_native_control:true,confirm_native:true,show_control:true,show_irrigate:false,confirm_irrigate:true,confirm_open:true,...config};
+  for (const key of ['show_actions','show_control','show_irrigate','show_native_control','show_master_control','show_controller','confirm_native','confirm_open','confirm_irrigate']) if (config[key] !== undefined && typeof config[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
+  if (config.pause_minutes !== undefined && (!Number.isInteger(config.pause_minutes) || config.pause_minutes < 1 || config.pause_minutes > 1440)) throw new Error('pause_minutes must be an integer from 1 to 1440.');
+  return {show_actions:true,show_master_control:true,show_controller:true,pause_minutes:60,show_native_control:true,confirm_native:true,show_control:true,show_irrigate:false,confirm_irrigate:true,confirm_open:true,...config};
 }
 export function resolveOverview(config, discovery) {
   const result = {...config};
@@ -42,9 +45,11 @@ export function overviewModel(config, states, system, discovery) {
   const zoneCount = Array.isArray(discovery?.zones) && !discovery?.error ? discovery.zones.length : null;
   const needed = Array.isArray(info?.next_irrigation_zones) ? info.next_irrigation_zones.length : null;
   const automation = states[config.automation_entity]?.state;
-  const running = Array.isArray(settings?.active_valve_runs) && settings.active_valve_runs.length > 0;
+  const controller = controllerModel(system);
+  const running = controller.busy || (Array.isArray(settings?.active_valve_runs) && settings.active_valve_runs.length > 0);
   let status = 'unknown';
   if (system?.error || !info || !settings) status = 'unknown';
+  else if (settings.irrigation_enabled === false || controller.paused) status = 'paused';
   else if (running) status = 'running';
   else if (settings.direct_valve_control_enabled !== true && automation === 'off') status = 'paused';
   else if (settings.direct_valve_control_enabled !== true && config.automation_entity && automation !== 'on') status = 'unknown';
@@ -62,6 +67,7 @@ export function overviewAction(config, states, key) {
   const entity = config[key];
   const state = states[entity]?.state;
   if (!entity || state === undefined || state === 'unavailable') return null;
+  if (key === 'irrigation_enabled_entity' && config.show_master_control !== false && entity.startsWith('switch.') && ['on','off'].includes(state)) return {domain:'switch',service:state === 'on' ? 'turn_off' : 'turn_on',entity};
   if (key === 'main_valve_entity') {
     const action = valveAction(entity, state, states[entity]?.attributes?.supported_features ?? 0);
     return action ? {...action,entity} : null;

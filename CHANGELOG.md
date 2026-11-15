@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — 2026-11-15
+
+- Support Smart Irrigation v2026.11.0: discover its central Calculate & water switch, display controller runtime, progress and pause expiry, and call native Pause/Resume/Stop actions with configurable pause duration. Keep all controls optional and retain older integration support.
+- Prefer native zone valves for automatic zone discovery. Their compact header requests calculated watering and native stop, with zero-duration and master-off gating; explicit hardware overrides retain manual controls.
+- Hide the incompatible direct-control setting under full control, keep master-off planning paused, refresh runtime using the current HA client, and isolate runtime API errors from planning data.
+- 40 logic tests and 41 browser checks.
+
 ## 0.7.2 — 2026-11-06
 
 - Explain zero calculated duration beside disabled native watering buttons in German and English; enable them again when demand changes.

@@ -195,7 +195,7 @@ test('rules show zone values, inherited intervals, backend holds and update afte
   await page.evaluate(async()=>{window.zoneData[0].days_between_irrigation=null;await window.discoveryCallbacks.zones();});
   await expect(card.locator('.rule-value').nth(1)).toHaveText('1 Tag');
   await expect(card.locator('.rule-source')).toHaveText('Global');
-  await page.evaluate(async()=>{window.zoneHass.callWS=async()=>{throw new Error('offline');};await window.discoveryCallbacks.system();});
+  await page.evaluate(async()=>{document.querySelector('irrigation-zone-card')._hass.callWS=async()=>{throw new Error('offline');};await window.discoveryCallbacks.system();});
   await expect(card.locator('.rules')).toContainText('Aktuelle Schutzprüfung nicht verfügbar');
   await expect(card.locator('.rule-holds')).toHaveCount(0);
   await page.evaluate(()=>document.querySelector('irrigation-zone-card').setConfig({zone:0,show_rules:false}));
@@ -247,9 +247,9 @@ test('native zone run discovers renamed button, confirms and never calls raw val
 });
 test('native zone mode disabled or failed never falls back to manual watering',async({page})=>{
   await nativeZoneFixture(page);const card=page.locator('irrigation-zone-card').first();
-  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:false}:{};await card._systemReader.refresh();});
+  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');card._hass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:false}:{};await card._systemReader.refresh();});
   await expect(card.locator('#irrigate')).toBeDisabled();await expect(card.locator('.irrigate-control')).toContainText('Direkte Ventilsteuerung');expect(await page.evaluate(()=>window.demoCalls)).toEqual([]);
-  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');window.zoneHass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:true}:{};await card._systemReader.refresh();card.setConfig({...card._config,confirm_irrigate:false});card._hass.callService=async()=>{throw new Error('Native run failed');};});
+  await page.evaluate(async()=>{const card=document.querySelector('irrigation-zone-card');card._hass.callWS=async message=>message.type==='smart_irrigation/config'?{direct_valve_control_enabled:true}:{};await card._systemReader.refresh();card.setConfig({...card._config,confirm_irrigate:false});card._hass.callService=async()=>{throw new Error('Native run failed');};});
   await card.locator('#irrigate').click();await expect(card.getByRole('alert')).toContainText('Native run failed');await expect(card.locator('.status')).toHaveText('Kein Wasserbedarf');
 });
 test('zero duration explains the disabled watering action and live demand re-enables it',async({page})=>{
@@ -263,4 +263,27 @@ test('zero duration explains the disabled watering action and live demand re-ena
   await card.evaluate(card=>{const entity=card._resolved().entity;card.hass={...card._hass,states:{...card._hass.states,[entity]:{state:'120',attributes:{unit_of_measurement:'s'}}}};card.setConfig({...card._config,language:'en'});});
   await expect(card.locator('#irrigate')).toBeEnabled();
   await expect(card.locator('.irrigate-control')).not.toContainText('duration 0');
+});
+test('native valve header uses timed integration control, gates zero/master off and always allows stopping',async({page})=>{
+  await nativeZoneFixture(page);
+  await page.evaluate(async()=>{
+    window.zoneRegistry.push({platform:'smart_irrigation',unique_id:'smart_irrigation_0_valve',entity_id:'valve.native_zone'});
+    const card=document.querySelector('irrigation-zone-card');
+    card.hass={...card._hass,states:{...card._hass.states,'valve.native_zone':{state:'closed',attributes:{supported_features:3}}}};
+    card.setConfig({zone:0,show_control:true,show_irrigate:false,show_rules:false,confirm_open:false});
+    await window.discoveryCallbacks.zones();
+  });
+  const card=page.locator('irrigation-zone-card').first();
+  await expect(card.locator('#control')).toHaveText('Jetzt bewässern');
+  await expect(card.locator('.control')).toHaveAttribute('title','Berechneter Lauf · Smart Irrigation');
+  await card.locator('#control').click();
+  expect(await page.evaluate(()=>window.demoCalls.at(-1))).toEqual({domain:'valve',service:'open_valve',data:{entity_id:'valve.native_zone'}});
+  await card.evaluate(card=>{card._system={config:{irrigation_enabled:false,direct_valve_control_enabled:true}};card._render();});
+  await expect(card.locator('#control')).toBeDisabled();
+  await expect(card.locator('.rule-note')).toContainText('zentral ausgeschaltet');
+  await card.evaluate(card=>{card.hass={...card._hass,states:{...card._hass.states,'valve.native_zone':{state:'open',attributes:{supported_features:3}}}};});
+  await expect(card.locator('#control')).toHaveText('Stoppen');
+  await expect(card.locator('#control')).toBeEnabled();
+  await card.locator('#control').click();
+  expect(await page.evaluate(()=>window.demoCalls.at(-1).service)).toBe('close_valve');
 });
