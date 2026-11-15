@@ -1,4 +1,4 @@
-/* Irrigation Zone Card v0.8.0 | MIT License */
+/* Irrigation Zone Card v0.8.1 | MIT License */
 
 // src/model.js
 var entityKeys = ["entity", "irrigation_needed_entity", "bucket_entity", "water_used_entity", "moisture_entity", "valve_entity", "et_entity", "problem_entity", "irrigate_entity"];
@@ -627,10 +627,11 @@ function overviewModel(config, states, system, discovery) {
     stale: Array.isArray(info?.stale_zones) && info.stale_zones.length > 0
   };
 }
-function overviewAction(config, states, key) {
+function overviewAction(config, states, key, system) {
   const entity = config[key];
   const state = states[entity]?.state;
   if (!entity || state === void 0 || state === "unavailable") return null;
+  if (key === "calculate_entity" && system?.config?.irrigation_enabled === false) return null;
   if (key === "irrigation_enabled_entity" && config.show_master_control !== false && entity.startsWith("switch.") && ["on", "off"].includes(state)) return { domain: "switch", service: state === "on" ? "turn_off" : "turn_on", entity };
   if (key === "main_valve_entity") {
     const action = valveAction(entity, state, states[entity]?.attributes?.supported_features ?? 0);
@@ -831,9 +832,9 @@ var IrrigationOverviewCard = class extends HTMLElement {
       }
       return;
     }
-    if (key === "irrigation_enabled_entity" && overviewAction(config, this._hass.states, key)?.service === "turn_on" && config.confirm_native && !window.confirm(this._ct.confirm)) return;
+    if (key === "irrigation_enabled_entity" && overviewAction(config, this._hass.states, key, this._system)?.service === "turn_on" && config.confirm_native && !window.confirm(this._ct.confirm)) return;
     if (key === "main_valve_entity" && !config.show_control) return;
-    const action = key === "irrigate_entity" ? irrigateAction(config, this._hass.states, this._system, this._discovery) : overviewAction(config, this._hass.states, key);
+    const action = key === "irrigate_entity" ? irrigateAction(config, this._hass.states, this._system, this._discovery) : overviewAction(config, this._hass.states, key, this._system);
     if (!action) return;
     if (key === "irrigate_entity" && config.confirm_irrigate && !window.confirm(this._it.confirmAll)) return;
     if (key === "main_valve_entity" && ["turn_on", "open_valve"].includes(action.service) && config.confirm_open && !window.confirm(this._t.confirm)) return;
@@ -904,7 +905,7 @@ var IrrigationOverviewCard = class extends HTMLElement {
     const checkIcons = { rain_sensor: "mdi:weather-rainy", wind: "mdi:weather-windy", precipitation: "mdi:weather-pouring", soil_moisture: "mdi:sprout", days_between: "mdi:calendar-clock", postponed: "mdi:pause-circle-outline" };
     const checks = m.checks.filter((check) => !["freeze", "precipitation"].includes(check.id));
     const statusIcon = { blocked: "mdi:shield-alert-outline", running: "mdi:sprinkler", paused: "mdi:pause-circle-outline", unknown: "mdi:help-circle-outline", noDemand: "mdi:check", scheduled: "mdi:calendar-check", demand: "mdi:water-alert" }[m.status];
-    const actionButton = (key, label, ico, secondary = false) => `<button id="${key}" data-action="${key}" class="${secondary ? "secondary" : ""}" ${!(key === "native_control" ? nativeSupported : overviewAction(config, this._hass.states, key)) || this._pending ? "disabled" : ""}>${icon(ico)}${esc(this._pending === key ? t.sending : label)}</button>`;
+    const actionButton = (key, label, ico, secondary = false) => `<button id="${key}" data-action="${key}" class="${secondary ? "secondary" : ""}" ${!(key === "native_control" ? nativeSupported : overviewAction(config, this._hass.states, key, this._system)) || this._pending ? "disabled" : ""}>${icon(ico)}${esc(this._pending === key ? t.sending : label)}</button>`;
     const precipitationState = this._hass.states[config.precipitation_switch_entity]?.state;
     const missing = overviewEntityKeys.filter((key) => config[key] && (!this._hass.states[config[key]] || this._hass.states[config[key]].state === "unavailable" || !config[key].startsWith("button.") && this._hass.states[config[key]].state === "unknown"));
     const valveText = { on: t.on, open: t.on, off: t.off, closed: t.off, opening: t.opening, closing: t.closing }[m.valveState] || t.unavailable;
@@ -915,9 +916,9 @@ var IrrigationOverviewCard = class extends HTMLElement {
     const nativeSupported = typeof native === "boolean" && !!this._hass.callApi;
     const topControl = (key, title, state, actionText, symbol, active = false) => {
       const interactive = config.show_actions && (key !== "main_valve_entity" || config.show_control);
-      return `<${interactive ? "button" : "div"} ${interactive ? `id="${key}" data-action="${key}" ${!(key === "native_control" ? nativeSupported : overviewAction(config, this._hass.states, key)) || this._pending ? "disabled" : ""}` : ""} class="top-control ${key === "native_control" ? "native-control" : ""} ${active ? "is-active" : ""}" ${key === "main_valve_entity" ? `title="${esc(t.manualValve)}"` : ""}>${icon(symbol)}<span class="top-copy"><span class="top-label">${esc(title)}</span><strong>${esc(state)}</strong>${key === "native_control" || key === "irrigation_enabled_entity" ? `<span class="top-label">${esc(key === "irrigation_enabled_entity" ? ct.masterNote : t.nativeNote)}</span>` : ""}${interactive ? `<span class="top-command">${esc(this._pending === key ? t.sending : actionText)}</span>` : ""}</span></${interactive ? "button" : "div"}>`;
+      return `<${interactive ? "button" : "div"} ${interactive ? `id="${key}" data-action="${key}" ${!(key === "native_control" ? nativeSupported : overviewAction(config, this._hass.states, key, this._system)) || this._pending ? "disabled" : ""}` : ""} class="top-control ${key === "native_control" ? "native-control" : ""} ${active ? "is-active" : ""}" ${key === "main_valve_entity" ? `title="${esc(t.manualValve)}"` : ""}>${icon(symbol)}<span class="top-copy"><span class="top-label">${esc(title)}</span><strong>${esc(state)}</strong>${key === "native_control" || key === "irrigation_enabled_entity" ? `<span class="top-label">${esc(key === "irrigation_enabled_entity" ? ct.masterNote : t.nativeNote)}</span>` : ""}${interactive ? `<span class="top-command">${esc(this._pending === key ? t.sending : actionText)}</span>` : ""}</span></${interactive ? "button" : "div"}>`;
     };
-    const mainAction = overviewAction(config, this._hass.states, "main_valve_entity");
+    const mainAction = overviewAction(config, this._hass.states, "main_valve_entity", this._system);
     const mainClose = ["turn_off", "close_valve"].includes(mainAction?.service);
     this.shadowRoot.innerHTML = `<style>${styles}${extraStyles}.controller progress{width:100%;accent-color:var(--iz-green);margin-top:8px}.controller-program{margin:12px 0}.controller-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.controller-link{display:inline-block;margin-top:12px;max-width:100%;text-decoration:none}</style><ha-card><div class="wrap">
       <header><div class="zone-icon">${icon(config.icon || "mdi:sprinkler-variant")}</div><div class="heading"><div class="eyebrow">${esc(t.eyebrow)}</div><h2>${esc(config.name || t.title)}</h2></div><button id="refresh" class="more" aria-label="${esc(t.refresh)}" ${!this._systemReader ? "disabled" : ""}>${icon("mdi:refresh")}</button></header>
@@ -933,7 +934,7 @@ var IrrigationOverviewCard = class extends HTMLElement {
         ${config.precipitation_switch_entity ? `<div class="setting">${icon("mdi:weather-pouring")}<div class="setting-copy">${esc(t.rainProtection)}<div class="label">${esc(precipitationState === "on" ? t.active : precipitationState === "off" ? t.inactive : t.unavailable)}</div></div>${config.show_actions ? `<button id="precipitation_switch_entity" class="text-action" data-action="precipitation_switch_entity" ${!overviewAction(config, this._hass.states, "precipitation_switch_entity") || this._pending ? "disabled" : ""}>${esc(precipitationState === "on" ? t.disable : t.enable)}</button>` : ""}</div>` : ""}
         ${config.precipitation_threshold_entity ? `<div class="setting">${icon("mdi:water-outline")}<div class="setting-copy">${esc(t.threshold)}</div><button id="rain-threshold" class="text-action" data-entity="${esc(config.precipitation_threshold_entity)}">${esc(this._state(config.precipitation_threshold_entity))}</button></div>` : ""}
       </div>
-      <div class="facts"><span>${esc(t.weather)}<br><strong>${esc(m.settings?.use_weather_service === false ? t.inactive : m.settings?.weather_service || "\u2014")}</strong></span><span>${esc(t.calculation)}<br><strong>${esc(m.settings?.autocalcenabled === true ? `${t.automatic}${m.settings.calctime ? " \xB7 " + m.settings.calctime : ""}` : m.settings?.autocalcenabled === false ? t.manual : "\u2014")}</strong></span></div>
+      <div class="facts"><span>${esc(t.weather)}<br><strong>${esc(m.settings?.use_weather_service === false ? t.inactive : m.settings?.weather_service || "\u2014")}</strong></span><span>${esc(t.calculation)}<br><strong>${esc(m.settings?.irrigation_enabled === false ? t.paused : m.settings?.autocalcenabled === true ? `${t.automatic}${m.settings.calctime ? " \xB7 " + m.settings.calctime : ""}` : m.settings?.autocalcenabled === false ? t.manual : "\u2014")}</strong></span></div>
       ${config.show_actions ? `<div class="actions">${actionButton("calculate_entity", t.calculate, "mdi:calculator-variant-outline")}${actionButton("update_weather_entity", t.update, "mdi:weather-sync", true)}</div>` : ""}
       ${!this._system || this._system.error ? `<div class="notice" role="status">${esc(this._system?.error ? t.offline : t.loading)}</div>` : ""}
       ${this._discovery?.error ? `<div class="notice">${esc(t.offline)}</div>` : ""}

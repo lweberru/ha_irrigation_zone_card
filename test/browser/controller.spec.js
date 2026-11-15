@@ -37,6 +37,8 @@ test('new master stays at the top, confirms enabling, and full controller hides 
   const card=await fixture(page);
   await expect(card.locator('#native_control')).toHaveCount(0);
   await expect(card.locator('#irrigation_enabled_entity')).toContainText('Zentrale Steuerung aus');
+  await expect(card.locator('#calculate_entity')).toBeDisabled();
+  await expect(card.locator('#update_weather_entity')).toBeEnabled();
   await expect(card.locator('.system-status')).toHaveText('Automatik pausiert');
   page.once('dialog',d=>d.dismiss());await card.locator('#irrigation_enabled_entity').click();
   expect(await page.evaluate(()=>window.controllerCalls)).toEqual([]);

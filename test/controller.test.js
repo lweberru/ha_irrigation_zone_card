@@ -15,6 +15,8 @@ test('master switch is discovered by stable ID, domain validated and independent
   assert.throws(()=>validateOverviewConfig({pause_minutes:1441}));
   assert.deepEqual(overviewAction({irrigation_enabled_entity:entry.entity_id},{[entry.entity_id]:{state:'off'}},'irrigation_enabled_entity'),{domain:'switch',service:'turn_on',entity:entry.entity_id});
   assert.equal(overviewAction({show_master_control:false,irrigation_enabled_entity:entry.entity_id},{[entry.entity_id]:{state:'on'}},'irrigation_enabled_entity'),null);
+  assert.equal(overviewAction({calculate_entity:'button.calc'},{'button.calc':{state:'unknown'}},'calculate_entity',runtime({},false)),null);
+  assert.notEqual(overviewAction({update_weather_entity:'button.weather'},{'button.weather':{state:'unknown'}},'update_weather_entity',runtime({},false)),null);
 });
 test('master off blocks native watering even though direct control is enabled',()=>{
   const config={show_irrigate:true,irrigate_entity:'button.run'};

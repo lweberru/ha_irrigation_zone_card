@@ -58,7 +58,7 @@ The repository provides the ready-to-use bundle at `dist/ha_irrigation_zone_card
 
 ### Manual installation / local development
 
-Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.8.0` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
+Copy `dist/ha_irrigation_zone_card.js` to `<HA configuration directory>/www/ha_irrigation_zone_card.js` and register `/local/ha_irrigation_zone_card.js?v=0.8.1` as a JavaScript module in your dashboard resources. When updating, change the version parameter and reload your browser. Do not edit `.storage` files.
 
 ## Central card: Irrigation Overview
 

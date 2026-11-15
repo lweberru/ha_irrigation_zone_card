@@ -63,10 +63,11 @@ export function overviewModel(config, states, system, discovery) {
     stale:Array.isArray(info?.stale_zones) && info.stale_zones.length > 0,
   };
 }
-export function overviewAction(config, states, key) {
+export function overviewAction(config, states, key, system) {
   const entity = config[key];
   const state = states[entity]?.state;
   if (!entity || state === undefined || state === 'unavailable') return null;
+  if (key === 'calculate_entity' && system?.config?.irrigation_enabled === false) return null;
   if (key === 'irrigation_enabled_entity' && config.show_master_control !== false && entity.startsWith('switch.') && ['on','off'].includes(state)) return {domain:'switch',service:state === 'on' ? 'turn_off' : 'turn_on',entity};
   if (key === 'main_valve_entity') {
     const action = valveAction(entity, state, states[entity]?.attributes?.supported_features ?? 0);

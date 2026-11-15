@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 — 2026-11-15
+
+- Honor the native master-off setting for Calculate all and the automatic-calculation status; weather updates remain available.
+- Verify master-off command gating in logic and browser tests.
+
 ## 0.8.0 — 2026-11-15
 
 - Support Smart Irrigation v2026.11.0: discover its central Calculate & water switch, display controller runtime, progress and pause expiry, and call native Pause/Resume/Stop actions with configurable pause duration. Keep all controls optional and retain older integration support.
